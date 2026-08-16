@@ -1,0 +1,5 @@
+# Copy to backend.hcl and fill in values, then:
+#   terraform init -backend-config=backend.hcl
+
+bucket = "your-tf-state-bucket"
+prefix = "rag/prod"
