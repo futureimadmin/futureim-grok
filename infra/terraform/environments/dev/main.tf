@@ -8,6 +8,7 @@
  *  - Required APIs, GCS buckets, Memorystore Redis, Pub/Sub, Artifact Registry
  *  - Least-privilege service accounts for each plane
  *  - Eventarc trigger (GCS object finalized → Cloud Run ingestion)
+ *  - Vertex AI Vector Search index + endpoint
  *
  * Usage:
  *   export TF_VAR_project_id=your-gcp-project
@@ -132,4 +133,21 @@ module "eventarc" {
     module.iam,
     google_vpc_access_connector.rag_connector,
   ]
+}
+
+# -----------------------------------------------------------------------------
+# Vertex AI Vector Search
+# -----------------------------------------------------------------------------
+
+module "vector_search" {
+  source = "../../modules/vector_search"
+
+  project_id                  = var.project_id
+  region                      = var.region
+  dimensions                  = 768
+  approximate_neighbors_count = 50
+  machine_type                = "e2-standard-2"
+  min_replica_count           = 1
+  max_replica_count           = 3
+  public_endpoint_enabled     = true
 }
