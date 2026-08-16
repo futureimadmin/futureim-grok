@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="/static/console.css" />
+  <style>
+    .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+    .card { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.2rem; }
+    .card h2 { margin: 0 0 0.75rem; font-size: 1.05rem; }
+    label { display: block; font-size: 0.78rem; color: var(--muted); margin: 0.55rem 0 0.25rem; }
+    input, select, textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; color: var(--text); padding: 0.55rem 0.7rem; font: inherit; }
+    .row { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.85rem; }
+    .btn.danger { background: rgba(255,107,122,0.15); color: #ff8a96; border: 1px solid rgba(255,107,122,0.35); }
+    .fleet-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .fleet-table th, .fleet-table td { text-align: left; padding: 0.55rem 0.4rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .fleet-table th { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }
+    .msg { margin-top: 0.75rem; font-size: 0.85rem; color: var(--accent-2); }
+    .msg.err { color: #ff8a96; }
+    .top-nav { margin-bottom: 1rem; }
+    .top-nav a { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
+    @media (max-width: 900px) { .admin-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="main" style="max-width:1100px;margin:0 auto;">
+    <div class="top-nav"><a href="/">← Back to Fleet Console</a></div>
+    <header class="topbar">
+      <div>
+        <h1>Fleet Admin</h1>
+        <p class="muted">Create and manage fleets and racks. Changes write to the registry YAML.</p>
+      </div>
+    </header>
+
+    <div class="admin-grid">
+      <section class="card">
+        <h2>Create fleet</h2>
+        <form id="fleet-form">
+          <label for="fleet_id">Fleet ID</label>
+          <input id="fleet_id" name="fleet_id" placeholder="e.g. wealth_management" required pattern="[a-z][a-z0-9_]{1,63}" />
+          <label for="fleet_name">Name</label>
+          <input id="fleet_name" name="name" placeholder="Wealth Management" required />
+          <label for="fleet_desc">Description</label>
+          <textarea id="fleet_desc" name="description" rows="2"></textarea>
+          <label for="fleet_icon">Icon (emoji)</label>
+          <input id="fleet_icon" name="icon" value="📚" />
+          <label for="fleet_hint">System prompt hint</label>
+          <textarea id="fleet_hint" name="system_prompt_hint" rows="2" placeholder="Domain specialist instructions…"></textarea>
+          <div class="row"><button class="btn primary" type="submit">Create fleet</button></div>
+          <div id="fleet-msg" class="msg" hidden></div>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Add rack</h2>
+        <form id="rack-form">
+          <label for="rack_fleet">Fleet</label>
+          <select id="rack_fleet" name="fleet_id" required>
+            <option value="">Select fleet…</option>
+            {% for f in fleets %}
+            <option value="{{ f.fleet_id }}">{{ f.icon }} {{ f.name }}</option>
+            {% endfor %}
+          </select>
+          <label for="rack_id">Rack ID</label>
+          <input id="rack_id" name="rack_id" placeholder="e.g. portfolio_ops" required pattern="[a-z][a-z0-9_]{1,63}" />
+          <label for="rack_name">Name</label>
+          <input id="rack_name" name="name" placeholder="Portfolio Operations" required />
+          <label for="rack_desc">Description</label>
+          <textarea id="rack_desc" name="description" rows="2"></textarea>
+          <div class="row"><button class="btn primary" type="submit">Add rack</button></div>
+          <div id="rack-msg" class="msg" hidden></div>
+        </form>
+      </section>
+    </div>
+
+    <section class="card" style="margin-top:1.25rem;">
+      <h2>Current fleets</h2>
+      <table class="fleet-table">
+        <thead><tr><th>Fleet</th><th>Racks</th><th>Docs prefix</th><th></th></tr></thead>
+        <tbody>
+          {% for f in fleets %}
+          <tr>
+            <td><strong>{{ f.icon }} {{ f.name }}</strong><br><span class="muted">{{ f.fleet_id }}</span><br><span class="muted">{{ f.description }}</span></td>
+            <td>
+              {% for r in f.racks %}
+              <div>{{ r.name }} <span class="muted">({{ r.rack_id }})</span>
+                <button class="btn danger" style="padding:0.15rem 0.45rem;font-size:0.72rem;" data-del-rack="{{ f.fleet_id }}/{{ r.rack_id }}" type="button">×</button>
+              </div>
+              {% else %}<span class="muted">No racks</span>{% endfor %}
+            </td>
+            <td class="muted">{{ f.documents_prefix }}</td>
+            <td><button class="btn danger" data-del-fleet="{{ f.fleet_id }}" type="button">Delete</button></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+  <script>
+    function show(id, text, err) {
+      const el = document.getElementById(id);
+      el.hidden = false; el.textContent = text; el.className = "msg" + (err ? " err" : "");
+    }
+    document.getElementById("fleet-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const body = Object.fromEntries(new FormData(e.target).entries());
+      const res = await fetch("/api/admin/fleets", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(body) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return show("fleet-msg", data.detail || "Failed", true);
+      show("fleet-msg", `Created fleet ${data.fleet_id}`); setTimeout(() => location.reload(), 600);
+    });
+    document.getElementById("rack-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const fleetId = fd.get("fleet_id");
+      const body = { rack_id: fd.get("rack_id"), name: fd.get("name"), description: fd.get("description") || "" };
+      const res = await fetch(`/api/admin/fleets/${fleetId}/racks`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(body) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return show("rack-msg", data.detail || "Failed", true);
+      show("rack-msg", `Added rack ${data.rack_id}`); setTimeout(() => location.reload(), 600);
+    });
+    document.querySelectorAll("[data-del-fleet]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        if (!confirm(`Delete fleet ${btn.dataset.delFleet}?`)) return;
+        const res = await fetch(`/api/admin/fleets/${btn.dataset.delFleet}`, { method: "DELETE" });
+        if (res.ok) location.reload(); else alert("Delete failed");
+      });
+    });
+    document.querySelectorAll("[data-del-rack]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const [fleet, rack] = btn.dataset.delRack.split("/");
+        if (!confirm(`Delete rack ${rack}?`)) return;
+        const res = await fetch(`/api/admin/fleets/${fleet}/racks/${rack}`, { method: "DELETE" });
+        if (res.ok) location.reload(); else alert("Delete failed");
+      });
+    });
+  </script>
+</body>
+</html>
