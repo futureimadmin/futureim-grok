@@ -1,19 +1,17 @@
 """
-Four-slot prompt builder (section 8 of the architecture guide).
-
-Slot 1 – System prompt (role + grounding + citation format)
-Slot 2 – Retrieved context (top-K chunks with source metadata)
-Slot 3 – Grounding guardrail (repeated immediately before the query)
-Slot 4 – User query
+Four-slot prompt builder with optional Fleet / Rack domain hints.
 """
 
 from __future__ import annotations
 
-from typing import List
+from typing import TYPE_CHECKING, List, Optional
 
 from src.common.models import RetrievedChunk
 
-SYSTEM_PROMPT = """You are a helpful assistant for the organisation's documentation.
+if TYPE_CHECKING:
+    from src.fleet.models import Fleet, Rack
+
+SYSTEM_PROMPT_BASE = """You are a helpful assistant for the organisation's documentation.
 Answer ONLY from the provided context below.
 If the context does not contain sufficient information to answer the question,
 say exactly: "I don't have enough information in the documentation."
@@ -25,7 +23,24 @@ GROUNDING_GUARDRAIL = """Using ONLY the sources above, answer the question below
 Do not use prior knowledge. If you are unsure, say so."""
 
 
-def build_prompt(query: str, chunks: List[RetrievedChunk]) -> str:
+def build_prompt(
+    query: str,
+    chunks: List[RetrievedChunk],
+    fleet: Optional["Fleet"] = None,
+    rack: Optional["Rack"] = None,
+) -> str:
+    domain_lines = []
+    if fleet:
+        domain_lines.append(f"Domain fleet: {fleet.name} ({fleet.fleet_id}).")
+        if fleet.system_prompt_hint:
+            domain_lines.append(fleet.system_prompt_hint)
+    if rack:
+        domain_lines.append(f"Specialty rack: {rack.name} — {rack.description}")
+
+    system = SYSTEM_PROMPT_BASE
+    if domain_lines:
+        system = system + "\n\n" + "\n".join(domain_lines)
+
     context_parts = []
     for i, c in enumerate(chunks, start=1):
         path = c.metadata.source_path if c.metadata else "unknown"
@@ -38,7 +53,7 @@ def build_prompt(query: str, chunks: List[RetrievedChunk]) -> str:
     context_block = "\n\n".join(context_parts) if context_parts else "(no sources retrieved)"
 
     return (
-        f"{SYSTEM_PROMPT}\n\n"
+        f"{system}\n\n"
         f"Context:\n\n{context_block}\n\n"
         f"{GROUNDING_GUARDRAIL}\n\n"
         f"Question: {query}"
