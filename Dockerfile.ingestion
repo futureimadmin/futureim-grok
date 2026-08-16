@@ -1,0 +1,23 @@
+# Multi-stage build for the RAG ingestion worker (Cloud Run)
+FROM python:3.12-slim AS builder
+
+WORKDIR /app
+COPY requirements.txt .
+# Extra deps useful for document extraction
+RUN pip install --no-cache-dir --user -r requirements.txt \
+    pypdf \
+    python-docx
+
+FROM python:3.12-slim
+
+WORKDIR /app
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH=/root/.local/bin:$PATH \
+    PORT=8080
+
+COPY --from=builder /root/.local /root/.local
+COPY src/ ./src/
+COPY apps/ingestion/ ./apps/ingestion/
+
+CMD ["uvicorn", "apps.ingestion.main:app", "--host", "0.0.0.0", "--port", "8080"]
