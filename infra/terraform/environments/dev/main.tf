@@ -7,6 +7,7 @@
  *    boundaries described in the RAG Architecture document.
  *  - Required APIs, GCS buckets, Memorystore Redis, Pub/Sub, Artifact Registry
  *  - Least-privilege service accounts for each plane
+ *  - Eventarc trigger (GCS object finalized → Cloud Run ingestion)
  *
  * Usage:
  *   export TF_VAR_project_id=your-gcp-project
@@ -92,7 +93,7 @@ module "iam" {
 }
 
 # -----------------------------------------------------------------------------
-# Optional: Serverless VPC Access connector so Cloud Run can reach private Redis
+# Serverless VPC Access connector so Cloud Run can reach private Redis / data plane
 # -----------------------------------------------------------------------------
 
 resource "google_vpc_access_connector" "rag_connector" {
@@ -105,4 +106,30 @@ resource "google_vpc_access_connector" "rag_connector" {
   max_instances = 3
 
   depends_on = [module.vpc]
+}
+
+# -----------------------------------------------------------------------------
+# Eventarc → Cloud Run ingestion pipeline
+# -----------------------------------------------------------------------------
+
+module "eventarc" {
+  source = "../../modules/eventarc"
+
+  project_id         = var.project_id
+  region             = var.region
+  documents_bucket   = module.services.documents_bucket_name
+  processed_bucket   = module.services.processed_bucket_name
+  ingestion_sa_email = module.iam.ingestion_sa_email
+  eventarc_sa_email  = module.iam.eventarc_sa_email
+  vpc_connector_id   = google_vpc_access_connector.rag_connector.id
+  dlq_topic          = "rag-ingestion-dlq"
+  # After first image build, set:
+  # ingestion_image = "${module.services.artifact_registry_url}/ingestion:latest"
+  ingestion_image    = "us-docker.pkg.dev/cloudrun/container/hello"
+
+  depends_on = [
+    module.services,
+    module.iam,
+    google_vpc_access_connector.rag_connector,
+  ]
 }
