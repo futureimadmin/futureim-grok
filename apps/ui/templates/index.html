@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="/static/console.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark">⚡</span>
+        <div>
+          <div class="brand-title">RAG Fleet</div>
+          <div class="brand-sub">Domain knowledge console</div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="section-label">Fleets</div>
+        <div id="fleet-list" class="fleet-list">
+          {% for f in fleets %}
+          <button class="fleet-item" data-fleet="{{ f.fleet_id }}" type="button">
+            <span class="fleet-icon">{{ f.icon }}</span>
+            <span class="fleet-meta">
+              <span class="fleet-name">{{ f.name }}</span>
+              <span class="fleet-desc">{{ f.description[:60] }}{% if f.description|length > 60 %}…{% endif %}</span>
+            </span>
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="sidebar-section" id="rack-section" hidden>
+        <div class="section-label">Racks <span id="rack-fleet-label" class="muted"></span></div>
+        <div id="rack-list" class="rack-list"></div>
+        <button class="rack-item rack-all" data-rack="" type="button">All racks in fleet</button>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="pill" id="scope-pill">No fleet selected</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1 id="panel-title">Select a fleet to start</h1>
+          <p id="panel-sub" class="muted">Each fleet is an isolated domain. Racks are specialty knowledge areas.</p>
+        </div>
+        <div class="topbar-actions">
+          <span class="badge" id="cache-badge" hidden>Cache hit</span>
+        </div>
+      </header>
+
+      <section class="query-panel">
+        <form id="query-form">
+          <label class="sr-only" for="query-input">Ask a question</label>
+          <textarea id="query-input" rows="3" placeholder="Ask anything about the selected fleet or rack…" required></textarea>
+          <div class="query-actions">
+            <div class="hints"><span class="hint-chip">Tip: pick a rack for sharper answers</span></div>
+            <button type="submit" id="ask-btn" class="btn primary" disabled>Ask</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="answer-panel" id="answer-panel" hidden>
+        <div class="answer-meta">
+          <span id="meta-latency" class="meta-item"></span>
+          <span id="meta-sources" class="meta-item"></span>
+          <span id="meta-type" class="meta-item"></span>
+          <span id="meta-faith" class="meta-item"></span>
+        </div>
+        <article id="answer-body" class="answer-body"></article>
+        <div id="citations" class="citations"></div>
+      </section>
+
+      <section class="empty-state" id="empty-state">
+        <div class="empty-card">
+          <div class="empty-icon">🚢</div>
+          <h2>RAG Fleet Console</h2>
+          <p>
+            Choose a <strong>Fleet</strong> (business domain) on the left, optionally a
+            <strong>Rack</strong> (subdomain), then ask a question.
+            Answers are grounded only in that fleet’s knowledge.
+          </p>
+          <ul class="empty-list">
+            <li><strong>Fleet</strong> — isolated domain (Insurance, Lending, …)</li>
+            <li><strong>Rack</strong> — specialty shelf inside a fleet (Claims, Underwriting, …)</li>
+            <li><strong>Shared infra</strong> — one VPC, many namespaces</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="/static/console.js"></script>
+</body>
+</html>
