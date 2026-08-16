@@ -1,4 +1,4 @@
-# Multi-stage build for Cloud Run
+# Multi-stage build for RAG Fleet Console (API + UI)
 FROM python:3.12-slim AS builder
 
 WORKDIR /app
@@ -15,7 +15,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 COPY --from=builder /root/.local /root/.local
 COPY src/ ./src/
+COPY config/ ./config/
 COPY apps/ ./apps/
 
-# Cloud Run expects the process to listen on $PORT
-CMD ["uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "apps.ui.main:app", "--host", "0.0.0.0", "--port", "8080"]
