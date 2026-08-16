@@ -1,11 +1,14 @@
 """
-RAG Fleet Console – unified API + user-friendly web UI.
+RAG Fleet Console – unified API + user-friendly web UI + admin.
 
 GET  /                     Fleet console UI
+GET  /admin                Fleet admin UI
 GET  /health
 GET  /api/fleets           List fleets
 GET  /api/fleets/{id}      Fleet detail + racks
-POST /api/v1/query         Scoped query (fleet_id, rack_id optional)
+POST /api/v1/query         Scoped query
+POST /api/admin/fleets     Create fleet
+PATCH/DELETE admin routes  Manage fleets & racks
 """
 
 from __future__ import annotations
@@ -81,6 +84,31 @@ class FleetOut(BaseModel):
     racks: List[RackOut]
 
 
+class FleetCreate(BaseModel):
+    fleet_id: str = Field(..., pattern=r"^[a-z][a-z0-9_]{1,63}$")
+    name: str
+    description: str = ""
+    icon: str = "📚"
+    default_top_k: int = 8
+    system_prompt_hint: str = ""
+
+
+class FleetUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    default_top_k: Optional[int] = None
+    system_prompt_hint: Optional[str] = None
+    status: Optional[str] = None
+
+
+class RackCreate(BaseModel):
+    rack_id: str = Field(..., pattern=r"^[a-z][a-z0-9_]{1,63}$")
+    name: str
+    description: str = ""
+    top_k: Optional[int] = None
+
+
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "rag-fleet", "version": "1.0.0"}
@@ -92,6 +120,15 @@ def console(request: Request):
     return templates.TemplateResponse(
         "index.html",
         {"request": request, "fleets": fleets, "title": "RAG Fleet Console"},
+    )
+
+
+@app.get("/admin", response_class=HTMLResponse)
+def admin_page(request: Request):
+    fleets = list_fleets()
+    return templates.TemplateResponse(
+        "admin.html",
+        {"request": request, "fleets": fleets, "title": "Fleet Admin"},
     )
 
 
@@ -147,7 +184,6 @@ def api_query(
                 status_code=404,
                 detail=f"Unknown rack '{body.rack_id}' in fleet '{body.fleet_id}'",
             )
-
     try:
         result: RAGResponse = orchestrator.run(
             body.query,
@@ -173,6 +209,71 @@ def api_query(
     except Exception:
         logger.exception("Query failed")
         raise HTTPException(status_code=500, detail="Internal error")
+
+
+@app.post("/api/admin/fleets", response_model=FleetOut, status_code=201)
+def admin_create_fleet(body: FleetCreate):
+    from src.fleet import admin as fleet_admin
+    try:
+        f = fleet_admin.create_fleet(
+            fleet_id=body.fleet_id,
+            name=body.name,
+            description=body.description,
+            icon=body.icon,
+            default_top_k=body.default_top_k,
+            system_prompt_hint=body.system_prompt_hint,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    return FleetOut(
+        fleet_id=f.fleet_id, name=f.name, description=f.description,
+        icon=f.icon, status=f.status.value, racks=[],
+    )
+
+
+@app.patch("/api/admin/fleets/{fleet_id}", response_model=FleetOut)
+def admin_update_fleet(fleet_id: str, body: FleetUpdate):
+    from src.fleet import admin as fleet_admin
+    try:
+        f = fleet_admin.update_fleet(fleet_id, **body.model_dump(exclude_unset=True))
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return FleetOut(
+        fleet_id=f.fleet_id, name=f.name, description=f.description,
+        icon=f.icon, status=f.status.value,
+        racks=[RackOut(rack_id=r.rack_id, name=r.name, description=r.description) for r in f.racks],
+    )
+
+
+@app.delete("/api/admin/fleets/{fleet_id}", status_code=204)
+def admin_delete_fleet(fleet_id: str):
+    from src.fleet import admin as fleet_admin
+    try:
+        fleet_admin.delete_fleet(fleet_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.post("/api/admin/fleets/{fleet_id}/racks", response_model=RackOut, status_code=201)
+def admin_add_rack(fleet_id: str, body: RackCreate):
+    from src.fleet import admin as fleet_admin
+    try:
+        r = fleet_admin.add_rack(
+            fleet_id, body.rack_id, body.name, body.description, body.top_k,
+        )
+    except ValueError as e:
+        code = 404 if "not found" in str(e).lower() else 409
+        raise HTTPException(status_code=code, detail=str(e))
+    return RackOut(rack_id=r.rack_id, name=r.name, description=r.description)
+
+
+@app.delete("/api/admin/fleets/{fleet_id}/racks/{rack_id}", status_code=204)
+def admin_delete_rack(fleet_id: str, rack_id: str):
+    from src.fleet import admin as fleet_admin
+    try:
+        fleet_admin.delete_rack(fleet_id, rack_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 if __name__ == "__main__":
