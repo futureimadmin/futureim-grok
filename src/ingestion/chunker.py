@@ -1,10 +1,5 @@
 """
-Semantic chunker implementing the three strategies from the architecture guide:
-  - fixed-size
-  - sentence-aware
-  - semantic (recommended) – split on paragraph / heading boundaries
-
-Every chunk carries the full metadata set required for filtering and citation.
+Semantic chunker with fleet/rack metadata support.
 """
 
 from __future__ import annotations
@@ -42,11 +37,9 @@ class Chunker:
         parts = re.split(r"(?=\n#{1,6}\s)", text)
         if len(parts) == 1:
             parts = re.split(r"\n\s*\n", text)
-
         chunks: List[str] = []
         current: List[str] = []
         current_tokens = 0
-
         for part in parts:
             part = part.strip()
             if not part:
@@ -64,7 +57,6 @@ class Chunker:
             else:
                 current.append(part)
                 current_tokens += t
-
         if current:
             chunks.append("\n\n".join(current))
         return [c for c in chunks if self._count_tokens(c) >= self.cfg.min_chunk_size]
@@ -84,7 +76,6 @@ class Chunker:
             size = self.cfg.chunk_size
             step = max(1, size - self.cfg.overlap)
             return [" ".join(words[i : i + size]) for i in range(0, len(words), step)]
-
         tokens = self.encoder.encode(text)
         size = self.cfg.chunk_size
         step = max(1, size - self.cfg.overlap)
@@ -104,6 +95,8 @@ class Chunker:
         doc_type: DocType = DocType.OTHER,
         product: Optional[str] = None,
         tenant_id: str = "default",
+        fleet_id: Optional[str] = None,
+        rack_id: Optional[str] = None,
         access_level: AccessLevel = AccessLevel.PUBLIC,
         language: str = "en",
         section_heading: Optional[str] = None,
@@ -125,6 +118,8 @@ class Chunker:
                 product=product,
                 language=language,
                 tenant_id=tenant_id,
+                fleet_id=fleet_id,
+                rack_id=rack_id,
                 access_level=access_level,
             )
             results.append(
