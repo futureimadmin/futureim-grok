@@ -30,3 +30,15 @@ output "vpc_access_connector" {
 output "artifact_registry" {
   value = module.services.artifact_registry_url
 }
+
+output "ingestion_service" {
+  value = module.eventarc.ingestion_service_name
+}
+
+output "ingestion_uri" {
+  value = module.eventarc.ingestion_service_uri
+}
+
+output "eventarc_trigger" {
+  value = module.eventarc.eventarc_trigger_name
+}
