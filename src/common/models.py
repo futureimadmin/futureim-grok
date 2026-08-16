@@ -35,6 +35,8 @@ class ChunkMetadata(BaseModel):
     product: Optional[str] = None
     language: str = "en"
     tenant_id: str = "default"
+    fleet_id: Optional[str] = None
+    rack_id: Optional[str] = None
     access_level: AccessLevel = AccessLevel.PUBLIC
     extra: Dict[str, Any] = Field(default_factory=dict)
 
