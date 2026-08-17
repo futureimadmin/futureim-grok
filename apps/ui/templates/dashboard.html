@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="/static/console.css" />
+  <link rel="stylesheet" href="/static/dashboard.css" />
+</head>
+<body>
+  <div class="dash-app">
+    <header class="dash-top">
+      <div class="dash-brand">
+        <a href="/" class="back-link">&larr; Fleet Console</a>
+        <h1>Accuracy Dashboard</h1>
+        <p class="muted">Agentic RAG &middot; RAGAS metrics &middot; live evaluation</p>
+      </div>
+      <div class="dash-actions">
+        <button type="button" id="btn-refresh" class="btn ghost">Refresh</button>
+        <button type="button" id="btn-clear" class="btn ghost danger">Clear runs</button>
+      </div>
+    </header>
+    <section class="hero-metrics">
+      <div class="hero-card primary">
+        <div class="hero-label">Overall Accuracy</div>
+        <div class="hero-value" id="overall-pct">&mdash;</div>
+        <div class="hero-sub">RAGAS composite &middot; target &ge; <span id="threshold-label">0.80</span></div>
+      </div>
+      <div class="hero-card">
+        <div class="hero-label">Pass Rate</div>
+        <div class="hero-value" id="pass-rate">&mdash;</div>
+        <div class="hero-sub">Runs meeting threshold</div>
+      </div>
+      <div class="hero-card">
+        <div class="hero-label">Total Runs</div>
+        <div class="hero-value" id="total-runs">0</div>
+        <div class="hero-sub">Agentic evaluations logged</div>
+      </div>
+      <div class="hero-card">
+        <div class="hero-label">Avg Latency</div>
+        <div class="hero-value" id="avg-latency">&mdash;</div>
+        <div class="hero-sub">Includes retries</div>
+      </div>
+    </section>
+    <section class="metric-grid">
+      <div class="metric-card"><div class="metric-head"><span class="metric-name">Faithfulness</span><span class="metric-val" id="m-faith">&mdash;</span></div><div class="bar"><div class="bar-fill" id="bar-faith"></div></div><p class="metric-desc">% claims grounded in retrieved context</p></div>
+      <div class="metric-card"><div class="metric-head"><span class="metric-name">Answer Relevance</span><span class="metric-val" id="m-rel">&mdash;</span></div><div class="bar"><div class="bar-fill" id="bar-rel"></div></div><p class="metric-desc">Does the answer address the question?</p></div>
+      <div class="metric-card"><div class="metric-head"><span class="metric-name">Context Precision</span><span class="metric-val" id="m-prec">&mdash;</span></div><div class="bar"><div class="bar-fill" id="bar-prec"></div></div><p class="metric-desc">Are retrieved chunks useful?</p></div>
+      <div class="metric-card"><div class="metric-head"><span class="metric-name">Context Recall</span><span class="metric-val" id="m-recall">&mdash;</span></div><div class="bar"><div class="bar-fill" id="bar-recall"></div></div><p class="metric-desc">Did retrieval find relevant info?</p></div>
+    </section>
+    <section class="eval-panel">
+      <h2>Run Agentic Evaluation</h2>
+      <p class="muted">Plan &rarr; retrieve &rarr; generate &rarr; score &rarr; retry if RAGAS &lt; threshold</p>
+      <form id="eval-form">
+        <div class="eval-row">
+          <select id="eval-fleet"><option value="">All fleets / unscoped</option>{% for f in fleets %}<option value="{{ f.fleet_id }}">{{ f.icon }} {{ f.name }}</option>{% endfor %}</select>
+          <select id="eval-rack"><option value="">All racks</option></select>
+        </div>
+        <textarea id="eval-query" rows="2" placeholder="Ask a question to evaluate accuracy&hellip;" required></textarea>
+        <div class="eval-actions">
+          <label class="toggle"><input type="checkbox" id="eval-agentic" checked /> Agentic mode</label>
+          <button type="submit" class="btn primary" id="eval-btn">Evaluate</button>
+        </div>
+      </form>
+      <div id="eval-result" class="eval-result" hidden></div>
+    </section>
+    <section class="tables-row">
+      <div class="table-card"><h3>By Fleet</h3>
+        <table class="data-table"><thead><tr><th>Fleet</th><th>Runs</th><th>Avg RAGAS</th><th>Pass rate</th></tr></thead>
+        <tbody id="fleet-tbody"><tr><td colspan="4" class="muted">No data yet</td></tr></tbody></table>
+      </div>
+      <div class="table-card wide"><h3>Recent Runs</h3>
+        <table class="data-table"><thead><tr><th>Time</th><th>Query</th><th>Fleet</th><th>RAGAS</th><th>Faith</th><th>Rel</th><th>Prec</th><th>Recall</th><th>Pass</th><th>ms</th><th>Tries</th></tr></thead>
+        <tbody id="recent-tbody"><tr><td colspan="11" class="muted">Run an evaluation to populate</td></tr></tbody></table>
+      </div>
+    </section>
+  </div>
+  <script>window.__FLEETS__ = {{ fleets_json | safe }};</script>
+  <script src="/static/dashboard.js"></script>
+</body>
+</html>
