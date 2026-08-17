@@ -117,9 +117,11 @@ def health():
 @app.get("/", response_class=HTMLResponse)
 def console(request: Request):
     fleets = list_fleets()
+    # Starlette 1.x: TemplateResponse(request, name, context)
     return templates.TemplateResponse(
+        request,
         "index.html",
-        {"request": request, "fleets": fleets, "title": "RAG Fleet Console"},
+        {"fleets": fleets, "title": "RAG Fleet Console"},
     )
 
 
@@ -127,8 +129,9 @@ def console(request: Request):
 def admin_page(request: Request):
     fleets = list_fleets()
     return templates.TemplateResponse(
+        request,
         "admin.html",
-        {"request": request, "fleets": fleets, "title": "Fleet Admin"},
+        {"fleets": fleets, "title": "Fleet Admin"},
     )
 
 
