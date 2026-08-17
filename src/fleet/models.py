@@ -1,14 +1,18 @@
 """
-Fleet / Rack domain model.
+Fleet / Rack / Tier domain model — 3-dimensional logical structure.
 
-Fleet  = a business domain RAG system (e.g. Insurance, Consumer Lending)
-Rack   = a subdomain / specialty knowledge area inside a fleet
-         (e.g. Insurance → claims | underwriting | policies)
+  Fleet  = logical domain          (e.g. Consumer Lending)
+  Rack   = logical sub-domain      (e.g. Personal Loans)
+  Tier   = logical group of sub-domains (e.g. Originations, Servicing)
+           Tiers are extended on demand; they are not physical capacity units.
 
-Maps onto metadata filters:
-  fleet_id  → domain boundary
-  rack_id   → subdomain filter
-  tenant_id → customer isolation
+BIAN (Banking Industry Architecture Network) is the *base platform* for all
+banking fleets. Every banking rack declares the BIAN service domains it
+implements; the dedicated `bian` reference fleet holds canonical BIAN knowledge
+in the vector/doc store (no artificial volume ceiling — scale the index).
+
+Namespace isolation remains metadata-driven:
+  fleet_id · rack_id · tier_id · bian_service_domain · tenant_id
 """
 
 from __future__ import annotations
@@ -26,24 +30,41 @@ class FleetStatus(str, Enum):
     DISABLED = "disabled"
 
 
+class Tier(BaseModel):
+    """Logical group of sub-domains (racks) and/or BIAN service domains."""
+
+    tier_id: str = Field(..., description="Stable id, e.g. originations")
+    name: str
+    description: str = ""
+    rack_ids: List[str] = Field(default_factory=list)
+    bian_service_domains: List[str] = Field(default_factory=list)
+
+
 class Rack(BaseModel):
     rack_id: str = Field(..., description="Stable id, e.g. claims")
     name: str
     description: str = ""
     top_k: Optional[int] = None
     embedding_namespace: Optional[str] = None
+    bian_service_domains: List[str] = Field(default_factory=list)
+    tier_ids: List[str] = Field(default_factory=list)
 
 
 class Fleet(BaseModel):
     fleet_id: str = Field(..., description="Stable id, e.g. insurance")
     name: str
     description: str = ""
-    icon: str = "📚"
+    icon: str = "\U0001f4da"
     status: FleetStatus = FleetStatus.ACTIVE
     racks: List[Rack] = Field(default_factory=list)
+    tiers: List[Tier] = Field(default_factory=list)
     default_top_k: int = 8
     system_prompt_hint: str = ""
     documents_prefix: str = ""
+    platform: str = "generic"  # "bian" | "generic"
+    bian_version: str = "12"
+    is_reference: bool = False
+    reference_fleet_id: Optional[str] = "bian"
 
     def rack(self, rack_id: str) -> Optional[Rack]:
         for r in self.racks:
@@ -51,14 +72,37 @@ class Fleet(BaseModel):
                 return r
         return None
 
-    def namespace(self, rack_id: Optional[str] = None) -> str:
+    def tier(self, tier_id: str) -> Optional[Tier]:
+        for t in self.tiers:
+            if t.tier_id == tier_id:
+                return t
+        return None
+
+    def namespace(
+        self,
+        rack_id: Optional[str] = None,
+        tier_id: Optional[str] = None,
+    ) -> str:
+        parts = [self.fleet_id]
         if rack_id:
-            return f"{self.fleet_id}/{rack_id}"
-        return self.fleet_id
+            parts.append(rack_id)
+        if tier_id:
+            parts.append(tier_id)
+        return "/".join(parts)
+
+    def bian_domains_for_rack(self, rack_id: Optional[str] = None) -> List[str]:
+        if not rack_id:
+            domains: List[str] = []
+            for r in self.racks:
+                domains.extend(r.bian_service_domains)
+            return sorted(set(domains))
+        r = self.rack(rack_id)
+        return list(r.bian_service_domains) if r else []
 
 
 class FleetRegistry(BaseModel):
     fleets: List[Fleet] = Field(default_factory=list)
+    bian_version_default: str = "12"
 
     def get(self, fleet_id: str) -> Optional[Fleet]:
         for f in self.fleets:
@@ -68,3 +112,12 @@ class FleetRegistry(BaseModel):
 
     def list_active(self) -> List[Fleet]:
         return [f for f in self.fleets if f.status == FleetStatus.ACTIVE]
+
+    def list_banking(self) -> List[Fleet]:
+        return [f for f in self.list_active() if f.platform == "bian" and not f.is_reference]
+
+    def reference_fleet(self) -> Optional[Fleet]:
+        for f in self.fleets:
+            if f.is_reference or f.fleet_id == "bian":
+                return f
+        return None
