@@ -1,8 +1,12 @@
 """
-Cloud Run ingestion worker – Eventarc → chunk → embed → vector upsert.
+Cloud Run ingestion worker – Eventarc → chunk → embed → dual-write.
 
 Path convention for fleets:
   fleets/{fleet_id}/{rack_id}/.../doc.md
+
+Architecture Tier 1 dual-write:
+  Vector Store: (chunk_id, embedding, metadata)
+  Doc Store:    (chunk_id → raw text + metadata)
 """
 
 from __future__ import annotations
@@ -22,12 +26,13 @@ from src.common.config import get_config
 from src.common.models import AccessLevel, DocType
 from src.ingestion.chunker import Chunker
 from src.ingestion.embedder import Embedder
+from src.query.doc_store import DocStore
 from src.query.vector_store import VectorStore
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("rag-ingestion")
 
-app = FastAPI(title="RAG Ingestion Worker", version="0.2.0")
+app = FastAPI(title="RAG Ingestion Worker", version="0.3.0")
 cfg = get_config()
 storage_client = storage.Client(project=cfg.project_id or None)
 
@@ -90,7 +95,6 @@ def _extract_text(local_path: Path, content_type: Optional[str]) -> str:
 
 
 def _infer_metadata(object_name: str) -> Dict[str, Any]:
-    """Parse fleets/{fleet_id}/{rack_id}/... and legacy tenant/product paths."""
     parts = [p for p in object_name.split("/") if p]
     meta = {
         "tenant_id": "default",
@@ -195,8 +199,17 @@ async def handle_event(request: Request):
                     md["namespace"] = ns
 
             upserted = VectorStore().upsert(records)
-            logger.info("chunks=%d upserted=%d fleet=%s rack=%s",
-                        len(records), upserted, meta.get("fleet_id"), meta.get("rack_id"))
+
+            # Dual-write Doc Store (raw text by chunk_id)
+            doc_records = [
+                {"id": ch.chunk_id, "text": ch.text, "metadata": rec.get("metadata") or {}}
+                for ch, rec in zip(chunks, records)
+            ]
+            doc_n = DocStore().put_many(doc_records)
+            logger.info(
+                "chunks=%d vector=%d docstore=%d fleet=%s rack=%s",
+                len(records), upserted, doc_n, meta.get("fleet_id"), meta.get("rack_id"),
+            )
 
             processed_bucket_name = os.getenv("PROCESSED_BUCKET") or cfg.processed_bucket
             if processed_bucket_name:
