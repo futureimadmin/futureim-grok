@@ -25,7 +25,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("rag-fleet-preview")
 
 BASE_DIR = Path(__file__).resolve().parent
-app = FastAPI(title="RAG Fleet Console (Preview)", version="1.0.1-preview")
+app = FastAPI(title="RAG Fleet Console (Preview)", version="1.0.2-preview")
 
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -103,6 +103,32 @@ def admin_page(request: Request):
     )
 
 
+@app.get("/dashboard", response_class=HTMLResponse)
+def dashboard_page(request: Request):
+    import json
+    fleets = list_fleets()
+    fleets_json = json.dumps(
+        [
+            {
+                "fleet_id": f.fleet_id,
+                "name": f.name,
+                "icon": f.icon,
+                "racks": [{"rack_id": r.rack_id, "name": r.name} for r in f.racks],
+            }
+            for f in fleets
+        ]
+    )
+    return templates.TemplateResponse(
+        request,
+        "dashboard.html",
+        {
+            "fleets": fleets,
+            "fleets_json": fleets_json,
+            "title": "Accuracy Dashboard (Preview)",
+        },
+    )
+
+
 @app.get("/api/fleets", response_model=List[FleetOut])
 def api_list_fleets():
     return [_fleet_out(f) for f in list_fleets()]
@@ -126,7 +152,7 @@ def api_query(body: QueryRequest):
     rack = fleet.rack(body.rack_id) if fleet and body.rack_id else None
     scope = fleet.name if fleet else "general knowledge"
     if rack:
-        scope = f"{fleet.name} › {rack.name}"
+        scope = f"{fleet.name} \u203a {rack.name}"
 
     answer = (
         f"[PREVIEW MODE]\n\n"
@@ -156,11 +182,115 @@ def api_query(body: QueryRequest):
     )
 
 
+class AgenticQueryRequest(BaseModel):
+    query: str = Field(..., min_length=1, max_length=4000)
+    fleet_id: Optional[str] = None
+    rack_id: Optional[str] = None
+    tenant_id: str = "default"
+    access_level: str = "public"
+    agentic: bool = True
+
+
+@app.post("/api/v1/agentic/query")
+def api_agentic_query(body: AgenticQueryRequest):
+    from src.agentic.metrics import evaluate_accuracy
+    from src.agentic.planner import Planner
+    from src.agentic.store import accuracy_store
+    from src.common.models import ChunkMetadata, RetrievedChunk
+
+    t0 = time.perf_counter()
+    if body.fleet_id and not get_fleet(body.fleet_id):
+        raise HTTPException(status_code=404, detail=f"Unknown fleet '{body.fleet_id}'")
+
+    fleet = get_fleet(body.fleet_id) if body.fleet_id else None
+    rack = fleet.rack(body.rack_id) if fleet and body.rack_id else None
+    scope = fleet.name if fleet else "general knowledge"
+    if rack:
+        scope = f"{fleet.name} > {rack.name}"
+
+    goals = Planner().decompose(body.query)
+    sample_text = (
+        f"Domain documentation for {scope}. "
+        f"This section explains concepts related to: {body.query}. "
+        f"Key procedures, definitions, and policy rules are described here so that "
+        f"answers can be grounded in retrieved context rather than prior knowledge."
+    )
+    chunks = [
+        RetrievedChunk(
+            chunk_id="preview-1",
+            text=sample_text,
+            score=0.92,
+            source="hybrid",
+            metadata=ChunkMetadata(
+                source_path=f"fleets/{body.fleet_id or 'demo'}/{(body.rack_id or 'general')}/guide.md",
+                section_heading="Overview",
+                fleet_id=body.fleet_id,
+                rack_id=body.rack_id,
+            ),
+        )
+    ]
+    answer = (
+        f"[AGENTIC PREVIEW]\n\n"
+        f"Sub-goals: {'; '.join(goals)}\n\n"
+        f"Based on the retrieved documentation for **{scope}**, "
+        f"the following addresses your question about {body.query}: "
+        f"the domain procedures and definitions in the knowledge base "
+        f"cover this topic under the selected fleet and rack. [Source 1]"
+    )
+    metrics = evaluate_accuracy(body.query, answer, chunks, threshold=0.80)
+    latency_ms = (time.perf_counter() - t0) * 1000
+    result = {
+        "answer": answer,
+        "citations": [{
+            "source_id": 1,
+            "path": chunks[0].metadata.source_path,
+            "section": "Overview",
+        }],
+        "query_type": "simple_factual",
+        "latency_ms": latency_ms,
+        "cache_hit": False,
+        "sources_used": 1,
+        "faithfulness_score": metrics.faithfulness,
+        "fleet_id": body.fleet_id,
+        "rack_id": body.rack_id,
+        "confidence_score": metrics.ragas_score,
+        "ragas": metrics.to_dict(),
+        "reasoning_trace": [
+            {"role": "plan", "content": " | ".join(goals)},
+            {"role": "action", "content": "rag_retrieval", "tool": "rag_retrieval"},
+            {
+                "role": "critique",
+                "content": f"RAGAS={metrics.ragas_score:.3f} passed={metrics.passed}",
+                "meta": metrics.to_dict(),
+            },
+        ],
+        "tool_calls": [{"tool": "rag_retrieval", "detail": body.query}],
+        "attempts": 1,
+        "threshold_met": metrics.passed,
+        "sub_goals": goals,
+    }
+    accuracy_store.record({**result, "query": body.query})
+    return result
+
+
+@app.get("/api/accuracy/summary")
+def api_accuracy_summary():
+    from src.agentic.store import accuracy_store
+    return accuracy_store.summary()
+
+
+@app.post("/api/accuracy/clear")
+def api_accuracy_clear():
+    from src.agentic.store import accuracy_store
+    accuracy_store.clear()
+    return {"status": "cleared"}
+
+
 class FleetCreate(BaseModel):
     fleet_id: str
     name: str
     description: str = ""
-    icon: str = "📚"
+    icon: str = "\U0001f4da"
     default_top_k: int = 8
     system_prompt_hint: str = ""
 
