@@ -7,11 +7,11 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from typing import List
 
 
 @dataclass
 class EmbeddingConfig:
+    # GCP Vertex default; diagram shows text-embedding-3-large/1536 for OpenAI-style stacks
     model: str = os.getenv("EMBEDDING_MODEL", "text-embedding-004")
     dimensions: int = int(os.getenv("EMBEDDING_DIMS", "768"))
     batch_size: int = int(os.getenv("EMBEDDING_BATCH_SIZE", "32"))
@@ -20,8 +20,9 @@ class EmbeddingConfig:
 @dataclass
 class ChunkConfig:
     strategy: str = os.getenv("CHUNK_STRATEGY", "semantic")  # fixed | sentence | semantic
-    chunk_size: int = int(os.getenv("CHUNK_SIZE", "512"))
-    overlap: int = int(os.getenv("CHUNK_OVERLAP", "64"))
+    # Architecture diagram: size=256 tok, overlap=32
+    chunk_size: int = int(os.getenv("CHUNK_SIZE", "256"))
+    overlap: int = int(os.getenv("CHUNK_OVERLAP", "32"))
     min_chunk_size: int = 50
 
 
@@ -29,7 +30,7 @@ class ChunkConfig:
 class RetrievalConfig:
     top_k_ann: int = int(os.getenv("TOP_K_ANN", "50"))
     top_k_prompt: int = int(os.getenv("TOP_K_PROMPT", "8"))
-    hybrid_alpha: float = float(os.getenv("HYBRID_ALPHA", "0.6"))  # weight for dense vs BM25
+    hybrid_alpha: float = float(os.getenv("HYBRID_ALPHA", "0.6"))
     rrf_k: int = 60
     similarity_threshold: float = 0.75
 
@@ -37,8 +38,9 @@ class RetrievalConfig:
 @dataclass
 class CacheConfig:
     enabled: bool = os.getenv("CACHE_ENABLED", "true").lower() == "true"
-    similarity_threshold: float = float(os.getenv("CACHE_SIM_THRESHOLD", "0.93"))
-    ttl_seconds: int = int(os.getenv("CACHE_TTL", "86400"))  # 24h
+    # Architecture diagram: similarity > 0.92
+    similarity_threshold: float = float(os.getenv("CACHE_SIM_THRESHOLD", "0.92"))
+    ttl_seconds: int = int(os.getenv("CACHE_TTL", "86400"))
     redis_host: str = os.getenv("REDIS_HOST", "localhost")
     redis_port: int = int(os.getenv("REDIS_PORT", "6379"))
     redis_auth: str = os.getenv("REDIS_AUTH", "")
@@ -67,7 +69,6 @@ class RAGConfig:
     cache: CacheConfig = field(default_factory=CacheConfig)
     llm: LLMConfig = field(default_factory=LLMConfig)
 
-    # Architectural constants from the guide
     temperature_rag: float = 0.1
     max_query_tokens: int = 2000
     answer_budget_tokens: int = 1024
