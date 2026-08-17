@@ -1,5 +1,8 @@
 """
-Orchestrator – five decision stages with Fleet + Rack scoping.
+Orchestrator – query path control plane (Tiers 3–7).
+
+Flow: validate → semantic cache → classify → expand/HyDE → retrieve →
+rerank → prompt → generate → post-process → cache write-back.
 """
 
 from __future__ import annotations
@@ -12,6 +15,7 @@ from src.common.config import RAGConfig, get_config
 from src.common.models import ExecutionPlan, QueryType, RAGResponse
 from src.fleet.registry import get_fleet
 from src.query.cache import SemanticCache
+from src.query.expansion import HyDE, QueryExpander
 from src.query.generator import Generator
 from src.query.postprocess import post_process
 from src.query.prompt import build_prompt
@@ -28,6 +32,8 @@ class Orchestrator:
         self.retriever = HybridRetriever(self.cfg)
         self.reranker = CrossEncoderReranker(self.cfg)
         self.generator = Generator(self.cfg)
+        self.expander = QueryExpander(self.cfg)
+        self.hyde = HyDE(self.cfg)
 
     def validate(self, query: str) -> str:
         if not query or not query.strip():
@@ -114,11 +120,20 @@ class Orchestrator:
             "rack_id": rack_id,
             "namespace": namespace,
         }
+
+        # Tier 4 — Query Expansion + optional HyDE
+        variants = self.expander.expand(clean, max_variants=2)
+        use_hyde = plan.query_type.value in ("analytical", "comparative", "multi_part")
+        hyde_vec = self.hyde.embed_hypothesis(clean) if use_hyde else None
+        logger.info("variants=%d hyde=%s", len(variants), bool(hyde_vec))
+
         candidates = self.retriever.retrieve(
             clean,
             top_k_ann=self.cfg.retrieval.top_k_ann,
             top_k_final=max(plan.k * 2, 20),
             filters=filters,
+            query_variants=variants,
+            dense_vector_override=hyde_vec,
         )
 
         if plan.use_reranker and candidates:
