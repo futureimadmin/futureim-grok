@@ -1,5 +1,6 @@
 """
-Hybrid retrieval: dense ANN (Vertex AI Vector Search) + BM25 + RRF fusion.
+Hybrid retrieval: dense ANN + BM25 + RRF fusion (Tiers 5–6).
+Hydrates text from Doc Store after vector search returns chunk_ids.
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ from rank_bm25 import BM25Okapi
 from src.common.config import RAGConfig, get_config
 from src.common.models import ChunkMetadata, RetrievedChunk
 from src.ingestion.embedder import Embedder
+from src.query.doc_store import DocStore
 from src.query.vector_store import VectorStore
 
 logger = logging.getLogger(__name__)
@@ -34,6 +36,7 @@ class HybridRetriever:
         self.cfg = config or get_config()
         self.embedder = Embedder()
         self.vector_store = VectorStore()
+        self.doc_store = DocStore()
         self._bm25: Optional[BM25Okapi] = None
         self._bm25_ids: List[str] = []
         self._bm25_texts: List[str] = []
@@ -96,19 +99,32 @@ class HybridRetriever:
         top_k_ann: Optional[int] = None,
         top_k_final: Optional[int] = None,
         filters: Optional[Dict] = None,
+        query_variants: Optional[List[str]] = None,
+        dense_vector_override: Optional[List[float]] = None,
     ) -> List[RetrievedChunk]:
         top_k_ann = top_k_ann or self.cfg.retrieval.top_k_ann
         top_k_final = top_k_final or self.cfg.retrieval.top_k_prompt
-        qvec = self.embedder.embed_query(query)
+
+        qvec = dense_vector_override or self.embedder.embed_query(query)
         dense_hits = self.dense_search(qvec, top_k=top_k_ann, filters=filters)
-        bm25_hits = self.bm25_search(query, top_k=top_k_ann, filters=filters)
+
+        variants = query_variants or [query]
+        bm25_best: Dict[str, float] = {}
+        for v in variants:
+            for cid, sc in self.bm25_search(v, top_k=top_k_ann, filters=filters):
+                bm25_best[cid] = max(sc, bm25_best.get(cid, 0.0))
+        bm25_hits = sorted(bm25_best.items(), key=lambda x: x[1], reverse=True)[:top_k_ann]
+
         dense_ids = [cid for cid, _ in dense_hits]
         bm25_ids = [cid for cid, _ in bm25_hits]
         fused = reciprocal_rank_fusion([dense_ids, bm25_ids], k=self.cfg.retrieval.rrf_k)[:top_k_ann]
+
         results: List[RetrievedChunk] = []
         for cid, score in fused[:top_k_final]:
-            doc = self._doc_store.get(cid, {})
-            meta_raw = doc.get("metadata", {})
+            # Hydrate: local BM25 cache first, then durable Doc Store
+            doc = self._doc_store.get(cid) or self.doc_store.get(cid) or {}
+            meta_raw = doc.get("metadata", {}) if isinstance(doc, dict) else {}
+            text = doc.get("text", "") if isinstance(doc, dict) else ""
             try:
                 meta = ChunkMetadata(**meta_raw) if meta_raw else ChunkMetadata(source_path="unknown")
             except Exception:
@@ -116,7 +132,7 @@ class HybridRetriever:
             results.append(
                 RetrievedChunk(
                     chunk_id=cid,
-                    text=doc.get("text", ""),
+                    text=text,
                     score=score,
                     source="hybrid",
                     metadata=meta,
