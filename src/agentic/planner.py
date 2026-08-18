@@ -58,7 +58,7 @@ class Planner:
 
         if any(w in lower for w in ("compare", "difference", "vs", "versus", "better")):
             parts = re.split(r"\b(?:vs\.?|versus|compared to|compare)\b", q, flags=re.I)
-            parts = [p.strip(" ?." ) for p in parts if p.strip(" ?.")]
+            parts = [p.strip(" ?.") for p in parts if p.strip(" ?.")]
             if len(parts) >= 2:
                 goals.append(f"retrieve facts about: {parts[0]}")
                 goals.append(f"retrieve facts about: {parts[1]}")
