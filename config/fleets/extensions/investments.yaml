@@ -1,0 +1,54 @@
+fleets:
+  - fleet_id: investments
+    name: Investments & Wealth
+    description: >
+      Investment accounts, portfolio planning/analysis/management, and trading
+      workbench capabilities aligned to BIAN Investment Management domains.
+    icon: "📊"
+    status: active
+    platform: bian
+    bian_version: "12"
+    is_reference: false
+    reference_fleet_id: bian
+    default_top_k: 10
+    documents_prefix: fleets/investments/
+    system_prompt_hint: >
+      You support wealth and investment operations. Prefer BIAN Investment Portfolio
+      Planning, Analysis, Management, Investment Account, and eTrading Workbench names.
+    tiers:
+      - tier_id: advisory
+        name: Advisory & Planning
+        description: Goal-based planning and suitability.
+        rack_ids: [portfolio_planning]
+        bian_service_domains: [Investment Portfolio Planning, Investment Portfolio Analysis, Customer Offer, Party Reference Data Management]
+      - tier_id: portfolio_mgmt
+        name: Portfolio Management
+        description: Discretionary and advisory portfolio ops.
+        rack_ids: [portfolio_management, investment_accounts]
+        bian_service_domains: [Investment Portfolio Management, Investment Account, Investment Portfolio Analysis]
+      - tier_id: markets
+        name: Markets & Execution
+        description: Order routing and trading workbench.
+        rack_ids: [trading]
+        bian_service_domains: [eTrading Workbench, Investment Account]
+    racks:
+      - rack_id: portfolio_planning
+        name: Portfolio Planning
+        description: IPS, risk profiling, asset allocation models.
+        bian_service_domains: [Investment Portfolio Planning, Investment Portfolio Analysis, Customer Offer]
+        tier_ids: [advisory]
+      - rack_id: portfolio_management
+        name: Portfolio Management
+        description: Rebalancing, corporate actions, performance.
+        bian_service_domains: [Investment Portfolio Management, Investment Portfolio Analysis]
+        tier_ids: [portfolio_mgmt]
+      - rack_id: investment_accounts
+        name: Investment Accounts
+        description: Custody, cash sweeps, account structures.
+        bian_service_domains: [Investment Account, Party Reference Data Management]
+        tier_ids: [portfolio_mgmt]
+      - rack_id: trading
+        name: Trading Workbench
+        description: Order capture, routing, best execution.
+        bian_service_domains: [eTrading Workbench, Investment Account]
+        tier_ids: [markets]

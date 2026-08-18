@@ -1,0 +1,59 @@
+fleets:
+  - fleet_id: corporate_lending
+    name: Corporate Lending
+    description: >
+      Commercial and corporate credit — facilities, syndicated loans, project
+      finance, and limit/exposure management on the BIAN base platform.
+    icon: "🏢"
+    status: active
+    platform: bian
+    bian_version: "12"
+    is_reference: false
+    reference_fleet_id: bian
+    default_top_k: 10
+    documents_prefix: fleets/corporate_lending/
+    system_prompt_hint: >
+      You support corporate credit teams. Prefer BIAN Corporate Loan, Syndicated Loan,
+      Credit Facility, Limit And Exposure Management, and Project Finance semantics.
+    tiers:
+      - tier_id: origination
+        name: Origination
+        description: Facility structuring and credit approval.
+        rack_ids: [corporate_loans, facilities, project_finance]
+        bian_service_domains: [Corporate Loan, Credit Facility, Credit Management, Project Finance, Customer Offer]
+      - tier_id: syndication
+        name: Syndication
+        description: Multi-bank deals and participation.
+        rack_ids: [syndicated]
+        bian_service_domains: [Syndicated Loan, Credit Facility, Limit And Exposure Management]
+      - tier_id: portfolio
+        name: Portfolio & Exposure
+        description: Limits, exposure, and monitoring.
+        rack_ids: [exposure]
+        bian_service_domains: [Limit And Exposure Management, Credit Management, Corporate Loan]
+    racks:
+      - rack_id: corporate_loans
+        name: Corporate Loans
+        description: Bilateral corporate facilities, covenants, drawdowns.
+        bian_service_domains: [Corporate Loan, Credit Facility, Credit Management, Customer Offer]
+        tier_ids: [origination]
+      - rack_id: facilities
+        name: Credit Facilities
+        description: Revolving facilities, commitment tracking, utilization.
+        bian_service_domains: [Credit Facility, Limit And Exposure Management, Corporate Loan]
+        tier_ids: [origination]
+      - rack_id: syndicated
+        name: Syndicated Loans
+        description: Syndicate structure, agent roles, participation transfers.
+        bian_service_domains: [Syndicated Loan, Credit Facility, Limit And Exposure Management]
+        tier_ids: [syndication]
+      - rack_id: project_finance
+        name: Project Finance
+        description: SPV structures, cash-flow lending, construction risk.
+        bian_service_domains: [Project Finance, Corporate Loan, Credit Facility]
+        tier_ids: [origination]
+      - rack_id: exposure
+        name: Limits & Exposure
+        description: Group limits, concentration, obligor exposure.
+        bian_service_domains: [Limit And Exposure Management, Credit Management]
+        tier_ids: [portfolio]
