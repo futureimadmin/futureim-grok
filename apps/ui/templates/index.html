@@ -9,27 +9,122 @@
 <body>
   <div class="app">
     <aside class="sidebar">
-      <div class="brand">RAG Fleet Console</div>
-      <nav>
-        <a href="/">Console</a>
-        <a href="/dashboard">Accuracy Dashboard</a>
-        <a href="/admin">Admin</a>
-      </nav>
-      <h3>Fleets</h3>
-      <div id="fleet-list" class="fleet-list"></div>
-      <h3>Racks</h3>
-      <div id="rack-list" class="rack-list"></div>
+      <div class="brand">
+        <span class="brand-mark">⚡</span>
+        <div>
+          <div class="brand-title">RAG Fleet</div>
+          <div class="brand-sub">BIAN · Domain knowledge console</div>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="section-label">Fleets</div>
+        <div id="fleet-list" class="fleet-list">
+          {% for f in fleets %}
+          <button class="fleet-item" data-fleet="{{ f.fleet_id }}" type="button">
+            <span class="fleet-icon">{{ f.icon }}</span>
+            <span class="fleet-meta">
+              <span class="fleet-name">{{ f.name }}</span>
+              <span class="fleet-desc">{{ f.description[:60] }}{% if f.description|length > 60 %}…{% endif %}</span>
+            </span>
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="sidebar-section" id="rack-section" hidden>
+        <div class="section-label">Racks <span id="rack-fleet-label" class="muted"></span></div>
+        <div id="rack-list" class="rack-list"></div>
+        <button class="rack-item rack-all" data-rack="" type="button">All racks in fleet</button>
+      </div>
+      <div class="sidebar-section" id="tier-section" hidden>
+        <div class="section-label">Tiers</div>
+        <div id="tier-list" class="tier-list"></div>
+      </div>
+      <div class="sidebar-footer">
+        <div class="pill" id="scope-pill">No fleet selected</div>
+        <div class="sidebar-links">
+          <a href="/dashboard" class="side-link">📊 Accuracy Dashboard</a>
+          <a href="/admin" class="side-link">⚙ Fleet Admin</a>
+        </div>
+      </div>
     </aside>
     <main class="main">
       <header class="topbar">
-        <h1>Query</h1>
-        <p class="muted">Scoped by fleet / rack · hybrid retrieval · citations</p>
+        <div>
+          <h1 id="panel-title">Select a fleet to start</h1>
+          <p id="panel-sub" class="muted">Each fleet is an isolated domain. Racks are specialty knowledge areas. Banking fleets sit on the BIAN platform.</p>
+        </div>
+        <div class="topbar-actions">
+          <span class="badge" id="platform-badge" hidden>BIAN</span>
+          <span class="badge" id="cache-badge" hidden>Cache hit</span>
+        </div>
       </header>
-      <div id="chat" class="chat"></div>
-      <div class="composer">
-        <textarea id="query" rows="2" placeholder="Ask about this fleet or rack…"></textarea>
-        <button id="send" class="btn primary">Send</button>
-      </div>
+      <section class="bian-panel" id="bian-panel" hidden>
+        <div class="bian-header">
+          <div>
+            <span class="bian-label">Active BIAN service domains</span>
+            <span class="muted" id="bian-scope-label"></span>
+          </div>
+          <span class="bian-version" id="bian-version"></span>
+        </div>
+        <div class="bian-chips" id="bian-chips"></div>
+        <p class="bian-hint muted" id="bian-hint"></p>
+      </section>
+      <section class="query-panel">
+        <form id="query-form">
+          <div class="mode-bar">
+            <label class="mode-option">
+              <input type="radio" name="mode" value="ask" checked /> Ask
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="mode" value="agentic" /> Agentic RAG
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="mode" value="codegen" /> Codegen (BIAN stubs)
+            </label>
+            <select id="lang-select" class="lang-select" title="Codegen language" hidden>
+              <option value="python">Python</option>
+              <option value="typescript">TypeScript</option>
+              <option value="java">Java</option>
+            </select>
+          </div>
+          <label class="sr-only" for="query-input">Ask a question</label>
+          <textarea id="query-input" rows="3" placeholder="Ask anything about the selected fleet or rack… For codegen try: generate Loan service stubs" required></textarea>
+          <div class="query-actions">
+            <div class="hints">
+              <span class="hint-chip" id="hint-chip">Tip: pick a rack for sharper answers</span>
+            </div>
+            <button type="submit" id="ask-btn" class="btn primary" disabled>Ask</button>
+          </div>
+        </form>
+      </section>
+      <section class="answer-panel" id="answer-panel" hidden>
+        <div class="answer-meta">
+          <span id="meta-latency" class="meta-item"></span>
+          <span id="meta-sources" class="meta-item"></span>
+          <span id="meta-type" class="meta-item"></span>
+          <span id="meta-faith" class="meta-item"></span>
+          <span id="meta-mode" class="meta-item"></span>
+          <span id="meta-ragas" class="meta-item"></span>
+        </div>
+        <article id="answer-body" class="answer-body"></article>
+        <div id="trace-panel" class="trace-panel" hidden>
+          <div class="section-label">Agent reasoning</div>
+          <pre id="trace-body" class="trace-body"></pre>
+        </div>
+        <div id="citations" class="citations"></div>
+      </section>
+      <section class="empty-state" id="empty-state">
+        <div class="empty-card">
+          <div class="empty-icon">🏦</div>
+          <h2>RAG Fleet · BIAN Console</h2>
+          <p>Choose a <strong>Fleet</strong>, optionally a <strong>Rack</strong> and <strong>Tier</strong>. Banking fleets show active BIAN service domains.</p>
+          <ul class="empty-list">
+            <li><strong>Ask</strong> — grounded Q&amp;A</li>
+            <li><strong>Agentic RAG</strong> — plan → dual-retrieve → RAGAS</li>
+            <li><strong>Codegen</strong> — BIAN service stubs</li>
+          </ul>
+        </div>
+      </section>
     </main>
   </div>
   <script src="/static/console.js"></script>
