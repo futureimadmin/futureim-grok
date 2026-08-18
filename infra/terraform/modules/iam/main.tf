@@ -1,7 +1,5 @@
 /**
- * IAM for the RAG system.
- * Separate service accounts for each architectural plane so that
- * least-privilege and network tags can be combined for defence-in-depth.
+ * IAM for the RAG system — plane-specific service accounts (least privilege).
  */
 
 terraform {
@@ -13,14 +11,10 @@ terraform {
   }
 }
 
-# -----------------------------------------------------------------------------
-# Service Accounts
-# -----------------------------------------------------------------------------
-
 resource "google_service_account" "ingestion" {
   account_id   = "rag-ingestion"
   display_name = "RAG Ingestion Plane"
-  description  = "Offline write pipeline – chunk, embed, upsert. No query-path permissions."
+  description  = "Offline write pipeline – chunk, embed, upsert."
   project      = var.project_id
 }
 
@@ -34,7 +28,7 @@ resource "google_service_account" "serving" {
 resource "google_service_account" "orchestrator" {
   account_id   = "rag-orchestrator"
   display_name = "RAG Orchestrator"
-  description  = "Central decision engine – cache, classify, fan-out, assemble."
+  description  = "Central decision engine – cache, classify, fan-out."
   project      = var.project_id
 }
 
@@ -44,10 +38,6 @@ resource "google_service_account" "eventarc" {
   description  = "Used by Eventarc to invoke the ingestion Cloud Run service."
   project      = var.project_id
 }
-
-# -----------------------------------------------------------------------------
-# Ingestion SA roles
-# -----------------------------------------------------------------------------
 
 resource "google_project_iam_member" "ingestion_storage" {
   project = var.project_id
@@ -72,39 +62,6 @@ resource "google_project_iam_member" "ingestion_logging" {
   role    = "roles/logging.logWriter"
   member  = "serviceAccount:${google_service_account.ingestion.email}"
 }
-
-resource "google_project_iam_member" "ingestion_eventarc_receiver" {
-  project = var.project_id
-  role    = "roles/eventarc.eventReceiver"
-  member  = "serviceAccount:${google_service_account.ingestion.email}"
-}
-
-# -----------------------------------------------------------------------------
-# Eventarc SA roles
-# -----------------------------------------------------------------------------
-
-resource "google_project_iam_member" "eventarc_run_invoker" {
-  project = var.project_id
-  role    = "roles/run.invoker"
-  member  = "serviceAccount:${google_service_account.eventarc.email}"
-}
-
-resource "google_project_iam_member" "eventarc_event_receiver" {
-  project = var.project_id
-  role    = "roles/eventarc.eventReceiver"
-  member  = "serviceAccount:${google_service_account.eventarc.email}"
-}
-
-# Allow Eventarc service agent to use the SA
-resource "google_service_account_iam_member" "eventarc_sa_user" {
-  service_account_id = google_service_account.eventarc.name
-  role               = "roles/iam.serviceAccountUser"
-  member             = "serviceAccount:service-${var.project_number}@gcp-sa-eventarc.iam.gserviceaccount.com"
-}
-
-# -----------------------------------------------------------------------------
-# Serving / Orchestrator SA roles
-# -----------------------------------------------------------------------------
 
 resource "google_project_iam_member" "serving_aiplatform" {
   project = var.project_id
@@ -136,7 +93,18 @@ resource "google_project_iam_member" "orchestrator_logging" {
   member  = "serviceAccount:${google_service_account.orchestrator.email}"
 }
 
-# Allow Cloud Run to impersonate the SAs
+resource "google_project_iam_member" "eventarc_eventReceiver" {
+  project = var.project_id
+  role    = "roles/eventarc.eventReceiver"
+  member  = "serviceAccount:${google_service_account.eventarc.email}"
+}
+
+resource "google_project_iam_member" "eventarc_run_invoker" {
+  project = var.project_id
+  role    = "roles/run.invoker"
+  member  = "serviceAccount:${google_service_account.eventarc.email}"
+}
+
 resource "google_service_account_iam_member" "ingestion_run_user" {
   service_account_id = google_service_account.ingestion.name
   role               = "roles/iam.serviceAccountUser"

@@ -1,12 +1,7 @@
 /**
  * Vertex AI Vector Search (Matching Engine) for the RAG system.
- *
- * Creates:
- *  - Index (STREAM_UPDATE for real-time upserts from ingestion)
- *  - Index Endpoint
- *  - Deployed Index
- *
- * Dimensions must match the embedding model (text-embedding-004 → 768).
+ * Index (STREAM_UPDATE) + Endpoint + Deployed Index.
+ * Dimensions must match embedding model (text-embedding-004 → 768).
  */
 
 terraform {
