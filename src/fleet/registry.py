@@ -43,7 +43,14 @@ def get_registry(path: Optional[str] = None) -> FleetRegistry:
             data.setdefault("fleets", []).extend(extra_fleets)
             logger.info("Merged %d fleets from %s", len(extra_fleets), ep)
     fleets: List[Fleet] = []
+    seen_ids = set()
     for raw in data.get("fleets", []):
+        fid = raw.get("fleet_id")
+        if fid in seen_ids:
+            logger.warning("Skipping duplicate fleet_id=%s", fid)
+            continue
+        if fid:
+            seen_ids.add(fid)
         racks = [Rack(**r) for r in raw.pop("racks", [])]
         tiers = [Tier(**t) for t in raw.pop("tiers", [])]
         status = raw.pop("status", "active")
