@@ -88,6 +88,16 @@ class HybridRetriever:
                     continue
                 if filters.get("tenant_id") and meta.get("tenant_id") not in (None, filters["tenant_id"]):
                     continue
+                if filters.get("bian_service_domain") and meta.get("bian_service_domain") not in (
+                    None,
+                    filters["bian_service_domain"],
+                ):
+                    continue
+                if filters.get("is_bian_reference") is not None and meta.get("is_bian_reference") not in (
+                    None,
+                    filters["is_bian_reference"],
+                ):
+                    continue
             out.append((cid, float(s)))
             if len(out) >= top_k:
                 break
@@ -121,7 +131,6 @@ class HybridRetriever:
 
         results: List[RetrievedChunk] = []
         for cid, score in fused[:top_k_final]:
-            # Hydrate: local BM25 cache first, then durable Doc Store
             doc = self._doc_store.get(cid) or self.doc_store.get(cid) or {}
             meta_raw = doc.get("metadata", {}) if isinstance(doc, dict) else {}
             text = doc.get("text", "") if isinstance(doc, dict) else ""
@@ -143,3 +152,69 @@ class HybridRetriever:
             len(dense_ids), len(bm25_ids), len(fused), len(results),
         )
         return results
+
+    def retrieve_dual(
+        self,
+        query: str,
+        *,
+        product_filters: Optional[Dict] = None,
+        bian_filter_list: Optional[List[Dict]] = None,
+        top_k_ann: Optional[int] = None,
+        top_k_final: Optional[int] = None,
+        query_variants: Optional[List[str]] = None,
+        dense_vector_override: Optional[List[float]] = None,
+        bian_share: float = 0.35,
+    ) -> List[RetrievedChunk]:
+        """
+        Dual-pull: product fleet content + BIAN reference domains, then merge by score.
+
+        bian_share: fraction of final slots reserved preferentially for BIAN hits
+        (remainder filled by best overall). Guarantees platform structure in context
+        without starving product policy docs.
+        """
+        top_k_final = top_k_final or self.cfg.retrieval.top_k_prompt
+        product = self.retrieve(
+            query,
+            top_k_ann=top_k_ann,
+            top_k_final=top_k_final,
+            filters=product_filters,
+            query_variants=query_variants,
+            dense_vector_override=dense_vector_override,
+        )
+
+        bian_chunks: List[RetrievedChunk] = []
+        for bf in bian_filter_list or []:
+            part = self.retrieve(
+                query,
+                top_k_ann=top_k_ann,
+                top_k_final=max(4, top_k_final // 2),
+                filters=bf,
+                query_variants=query_variants,
+                dense_vector_override=dense_vector_override,
+            )
+            bian_chunks.extend(part)
+
+        by_id: Dict[str, RetrievedChunk] = {}
+        for c in product + bian_chunks:
+            prev = by_id.get(c.chunk_id)
+            if prev is None or c.score > prev.score:
+                by_id[c.chunk_id] = c
+        merged = sorted(by_id.values(), key=lambda x: x.score, reverse=True)
+
+        if not bian_chunks or not product:
+            return merged[:top_k_final]
+
+        n_bian = max(1, int(top_k_final * bian_share))
+        bian_ids = {c.chunk_id for c in bian_chunks}
+        bian_picked = [c for c in merged if c.chunk_id in bian_ids][:n_bian]
+        rest = [c for c in merged if c.chunk_id not in {x.chunk_id for x in bian_picked}]
+        out = (bian_picked + rest)[:top_k_final]
+        logger.info(
+            "Dual retrieve: product=%d bian=%d merged=%d returned=%d (bian_slots=%d)",
+            len(product),
+            len(bian_chunks),
+            len(merged),
+            len(out),
+            n_bian,
+        )
+        return out
