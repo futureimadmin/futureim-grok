@@ -1,4 +1,10 @@
-"""RAG Query API — Tier 3 entrypoint."""
+"""
+Query-path FastAPI service (private-serving plane).
+
+Tier 3 entry: optional API-key auth, rate-limit, then orchestrator.
+Supports fleet_id / rack_id scoping for RAG Fleet isolation.
+"""
+
 from __future__ import annotations
 
 import logging
