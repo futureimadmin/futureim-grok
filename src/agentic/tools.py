@@ -3,6 +3,7 @@ Tool Registry — agent selects tools dynamically based on sub-goal.
 
 Tools:
   - rag_retrieval      product + optional BIAN dual-pull
+  - bian_codegen       BIAN-aligned service stubs for active domains
   - accuracy_evaluator RAGAS metrics
   - web_search / code_executor / api_db stubs
 """
@@ -12,14 +13,24 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Sequence
 
 from src.agentic.metrics import AccuracyMetrics, evaluate_accuracy
 from src.common.config import RAGConfig, get_config
 from src.common.models import RetrievedChunk
-from src.query.retrieval import HybridRetriever
-from src.query.reranker import CrossEncoderReranker
-from src.query.topk import TopKSelector
+from src.query.codegen import generate_stubs
+
+try:
+    from src.query.retrieval import HybridRetriever
+    from src.query.reranker import CrossEncoderReranker
+    from src.query.topk import TopKSelector
+    _RETRIEVAL_OK = True
+except Exception as _e:  # pragma: no cover
+    HybridRetriever = None  # type: ignore
+    CrossEncoderReranker = None  # type: ignore
+    TopKSelector = None  # type: ignore
+    _RETRIEVAL_OK = False
+    logging.getLogger(__name__).warning("Retrieval stack unavailable: %s", _e)
 
 logger = logging.getLogger(__name__)
 
@@ -37,11 +48,17 @@ class ToolResult:
 class ToolRegistry:
     def __init__(self, config: Optional[RAGConfig] = None):
         self.cfg = config or get_config()
-        self.retriever = HybridRetriever(self.cfg)
-        self.reranker = CrossEncoderReranker(self.cfg)
-        self.topk = TopKSelector(self.cfg)
+        if _RETRIEVAL_OK:
+            self.retriever = HybridRetriever(self.cfg)
+            self.reranker = CrossEncoderReranker(self.cfg)
+            self.topk = TopKSelector(self.cfg)
+        else:
+            self.retriever = None
+            self.reranker = None
+            self.topk = None
         self._tools: Dict[str, Callable[..., ToolResult]] = {
             "rag_retrieval": self.rag_retrieval,
+            "bian_codegen": self.bian_codegen,
             "accuracy_evaluator": self.accuracy_evaluator,
             "web_search": self.web_search,
             "code_executor": self.code_executor,
@@ -78,6 +95,13 @@ class ToolRegistry:
         bian_filter_list: Optional[List[Dict]] = None,
         **_kwargs,
     ) -> ToolResult:
+        if self.retriever is None:
+            return ToolResult(
+                tool="rag_retrieval",
+                success=True,
+                data=[],
+                meta={"n": 0, "note": "retrieval stack unavailable in this environment"},
+            )
         if dual_pull and bian_filter_list is not None:
             candidates = self.retriever.retrieve_dual(
                 query,
@@ -103,6 +127,34 @@ class ToolRegistry:
             meta={"n": len(candidates), "filters": filters or {}, "dual_pull": dual_pull},
         )
 
+    def bian_codegen(
+        self,
+        domains: Optional[Sequence[str]] = None,
+        language: str = "python",
+        fleet_id: Optional[str] = None,
+        rack_id: Optional[str] = None,
+        query: str = "",
+        **_kwargs,
+    ) -> ToolResult:
+        domains = list(domains or [])
+        code = generate_stubs(
+            domains,
+            language=language,
+            fleet_id=fleet_id,
+            rack_id=rack_id,
+        )
+        return ToolResult(
+            tool="bian_codegen",
+            success=True,
+            data=code,
+            meta={
+                "domains": domains,
+                "language": language,
+                "query": (query or "")[:200],
+                "note": "Structural BIAN stubs — product policy via RAG context only",
+            },
+        )
+
     def accuracy_evaluator(
         self,
         query: str,
@@ -122,22 +174,42 @@ class ToolRegistry:
         )
 
     def web_search(self, query: str, **_kwargs) -> ToolResult:
-        return ToolResult(tool="web_search", success=True, data=[], meta={"note": "web_search stub"})
+        return ToolResult(
+            tool="web_search",
+            success=True,
+            data=[],
+            meta={"note": "web_search stub — enable with SEARCH_API_KEY"},
+        )
 
     def code_executor(self, code: str = "", **_kwargs) -> ToolResult:
-        return ToolResult(tool="code_executor", success=True, data=None, meta={"note": "code_executor stub"})
+        return ToolResult(
+            tool="code_executor",
+            success=True,
+            data=None,
+            meta={"note": "code_executor stub — sandboxed exec not enabled"},
+        )
 
     def api_db(self, query: str = "", **_kwargs) -> ToolResult:
-        return ToolResult(tool="api_db", success=True, data=None, meta={"note": "api_db stub"})
+        return ToolResult(
+            tool="api_db",
+            success=True,
+            data=None,
+            meta={"note": "api_db stub — wire CRM/ERP connectors as needed"},
+        )
 
     def select_for_goal(self, goal: str) -> str:
         g = goal.lower()
-        if any(w in g for w in ("evaluate", "quality", "faithfulness", "accuracy", "ragas")):
+        if any(w in g for w in ("evaluat", "quality", "faithfulness", "accuracy", "ragas")):
             return "accuracy_evaluator"
-        if any(w in g for w in ("web", "internet", "online")):
+        if any(
+            w in g
+            for w in ("generate bian", "service stub", "codegen", "aligned service")
+        ):
+            return "bian_codegen"
+        if any(w in g for w in ("web", "internet", "online", "latest news")):
             return "web_search"
-        if any(w in g for w in ("compute", "calculate", "sql", "code")):
+        if any(w in g for w in ("compute", "calculate", "sql", "execute code")):
             return "code_executor"
-        if any(w in g for w in ("crm", "erp", "database", "api")):
+        if any(w in g for w in ("crm", "erp", "database", "api lookup")):
             return "api_db"
         return "rag_retrieval"
