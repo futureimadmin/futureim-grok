@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
-"""
-Seed BIAN reference markdown into the DocStore (and optionally Vector Store).
-
-Usage (from repo root):
-  set PYTHONPATH=.
-  python scripts/seed_bian_knowledge.py
-"""
+"""Seed BIAN reference markdown into DocStore (and Vector Store when GCP available)."""
 
 from __future__ import annotations
 
@@ -22,21 +16,18 @@ from src.query.doc_store import DocStore
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("seed-bian")
-
 BIAN_ROOT = ROOT / "fleets" / "bian"
 
 
 def main() -> int:
     if not BIAN_ROOT.exists():
-        logger.error("Missing %s — create BIAN markdown under fleets/bian/", BIAN_ROOT)
+        logger.error("Missing %s", BIAN_ROOT)
         return 1
-
     chunker = Chunker()
     store = DocStore()
-    total_chunks = 0
+    total = 0
     files = sorted(BIAN_ROOT.rglob("*.md"))
-    logger.info("Found %d BIAN markdown files under %s", len(files), BIAN_ROOT)
-
+    logger.info("Found %d BIAN markdown files", len(files))
     for path in files:
         rel = path.relative_to(ROOT).as_posix()
         text = path.read_text(encoding="utf-8")
@@ -56,17 +47,12 @@ def main() -> int:
             access_level=AccessLevel.INTERNAL,
         )
         records = [
-            {
-                "id": c.chunk_id,
-                "text": c.text,
-                "metadata": c.metadata.model_dump(mode="json"),
-            }
+            {"id": c.chunk_id, "text": c.text, "metadata": c.metadata.model_dump(mode="json")}
             for c in chunks
         ]
         n = store.put_many(records)
-        total_chunks += n
-        logger.info("Seeded %s → %d chunks (domain=%s)", rel, n, domain)
-
+        total += n
+        logger.info("Seeded %s → %d chunks (%s)", rel, n, domain)
         try:
             from src.ingestion.embedder import Embedder
             from src.query.vector_store import VectorStore
@@ -79,9 +65,8 @@ def main() -> int:
                 md["namespace"] = f"bian/{rack_id}"
             VectorStore().upsert(vec_records)
         except Exception as e:
-            logger.info("Vector upsert skipped (%s) — DocStore seed still OK", e)
-
-    logger.info("Done. Total BIAN chunks written: %d", total_chunks)
+            logger.info("Vector upsert skipped (%s)", e)
+    logger.info("Done. Total BIAN chunks: %d", total)
     return 0
 
 

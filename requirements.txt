@@ -7,25 +7,18 @@ jinja2>=3.1.4
 pyyaml>=6.0.2
 
 # GCP / Vertex AI
-# Note: do NOT also install the standalone "vertexai" package — it pins an exact
-# google-cloud-aiplatform version and causes ResolutionImpossible conflicts.
-# The vertexai namespace is provided by google-cloud-aiplatform itself.
 google-cloud-aiplatform>=1.70.0,<2.0
 google-cloud-storage>=2.18.0,<3.0
 google-cloud-pubsub>=2.26.0,<3.0
 google-cloud-secret-manager>=2.20.0,<3.0
 
-# RAG / NLP — pin LangChain stack together to avoid resolver backtracking
-langchain-core>=0.3.15,<0.4
-langchain>=0.3.7,<0.4
-langchain-community>=0.3.5,<0.4
-langchain-google-vertexai>=2.0.7,<3.0
-tiktoken>=0.8.0,<1.0
+# Embeddings / retrieval
+tiktoken>=0.7.0
 rank-bm25>=0.2.2
 numpy>=1.26.0,<3.0
-redis>=5.1.0,<6.0
 
-# Utilities
+# Redis semantic cache
+redis>=5.0.0,<6.0
+
+# HTTP
 httpx>=0.28.1,<1.0
-tenacity>=9.0.0,<10.0
-structlog>=24.4.0,<26.0
