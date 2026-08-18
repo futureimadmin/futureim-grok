@@ -47,7 +47,12 @@ def main() -> int:
         text = path.read_text(encoding="utf-8")
         parts = path.relative_to(BIAN_ROOT).parts
         rack_id = parts[0] if parts else "general"
-        domain = rack_id.replace("_", " ").title()
+        if rack_id in {"_scenarios", "_patterns"}:
+            domain = path.stem.replace("_", " ").title()
+            section = "scenario" if rack_id == "_scenarios" else "pattern"
+        else:
+            domain = rack_id.replace("_", " ").title()
+            section = path.stem
         chunks = chunker.chunk_document(
             text,
             source_path=rel,
@@ -59,6 +64,7 @@ def main() -> int:
             bian_version="12",
             is_bian_reference=True,
             access_level=AccessLevel.INTERNAL,
+            section_heading=section,
         )
         records = [
             {
