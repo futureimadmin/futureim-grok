@@ -1,4 +1,4 @@
-"""Load and serve the Fleet registry."""
+"""Load and serve the Fleet / Rack / Tier registry (including BIAN maps)."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from typing import List, Optional
 
 import yaml
 
-from src.fleet.models import Fleet, FleetRegistry, FleetStatus, Rack
+from src.fleet.models import Fleet, FleetRegistry, FleetStatus, Rack, Tier
 
 logger = logging.getLogger(__name__)
 
@@ -31,11 +31,28 @@ def get_registry(path: Optional[str] = None) -> FleetRegistry:
     fleets: List[Fleet] = []
     for raw in data.get("fleets", []):
         racks = [Rack(**r) for r in raw.pop("racks", [])]
+        tiers = [Tier(**t) for t in raw.pop("tiers", [])]
         status = raw.pop("status", "active")
-        fleets.append(Fleet(racks=racks, status=FleetStatus(status), **raw))
-    reg = FleetRegistry(fleets=fleets)
-    logger.info("Loaded %d fleets from %s", len(reg.fleets), p)
+        fleets.append(
+            Fleet(racks=racks, tiers=tiers, status=FleetStatus(status), **raw)
+        )
+    reg = FleetRegistry(
+        fleets=fleets,
+        bian_version_default=str(data.get("bian_version_default", "12")),
+    )
+    logger.info(
+        "Loaded %d fleets (%d banking, ref=%s) from %s",
+        len(reg.fleets),
+        len(reg.list_banking()),
+        reg.reference_fleet().fleet_id if reg.reference_fleet() else None,
+        p,
+    )
     return reg
+
+
+def reload_registry() -> FleetRegistry:
+    get_registry.cache_clear()
+    return get_registry()
 
 
 def list_fleets() -> List[Fleet]:
@@ -51,3 +68,17 @@ def get_rack(fleet_id: str, rack_id: str) -> Optional[Rack]:
     if not fleet:
         return None
     return fleet.rack(rack_id)
+
+
+def get_tier(fleet_id: str, tier_id: str) -> Optional[Tier]:
+    fleet = get_fleet(fleet_id)
+    if not fleet:
+        return None
+    return fleet.tier(tier_id)
+
+
+def bian_domains_for(fleet_id: str, rack_id: Optional[str] = None) -> List[str]:
+    fleet = get_fleet(fleet_id)
+    if not fleet:
+        return []
+    return fleet.bian_domains_for_rack(rack_id)
