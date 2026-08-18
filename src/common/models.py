@@ -37,6 +37,10 @@ class ChunkMetadata(BaseModel):
     tenant_id: str = "default"
     fleet_id: Optional[str] = None
     rack_id: Optional[str] = None
+    tier_id: Optional[str] = None
+    bian_service_domain: Optional[str] = None
+    bian_version: Optional[str] = None
+    is_bian_reference: bool = False
     access_level: AccessLevel = AccessLevel.PUBLIC
     extra: Dict[str, Any] = Field(default_factory=dict)
 
@@ -73,6 +77,12 @@ class ExecutionPlan(BaseModel):
     max_tokens: int = 512
     model_tier: str = "flash"  # flash | pro
     tool_calls: List[str] = Field(default_factory=list)
+    fleet_id: Optional[str] = None
+    rack_id: Optional[str] = None
+    tier_id: Optional[str] = None
+    tenant_id: str = "default"
+    access_level: str = "public"
+    bian_service_domains: List[str] = Field(default_factory=list)
 
 
 class Citation(BaseModel):
