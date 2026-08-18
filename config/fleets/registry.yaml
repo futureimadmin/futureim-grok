@@ -1,114 +1,411 @@
-# RAG Fleet Registry
-# Each fleet is an isolated domain knowledge system.
-# Racks are subdomains used for finer retrieval scoping and UI navigation.
+# =============================================================================
+# RAG Fleet Registry — 3D logical model
+#
+#   Fleet  = domain
+#   Rack   = sub-domain
+#   Tier   = logical group of sub-domains (extend on need)
+#
+# BIAN is the base platform for all banking fleets (platform: bian).
+# The `bian` fleet is the canonical reference knowledge base in the vector store.
+# Volume is not a design limit — scale Vertex Vector Search / shards as needed.
+# =============================================================================
+
+bian_version_default: "12"
 
 fleets:
+
+  # ── Base platform: BIAN reference ─────────────────────────────────────────
+  - fleet_id: bian
+    name: BIAN Reference
+    description: >
+      Banking Industry Architecture Network — canonical service domains,
+      business objects, and service operations. Base platform for all banking
+      fleets. Extend product fleets on top of this knowledge; do not fork BIAN
+      semantics without marking bank extensions in metadata.
+    icon: "🏦"
+    status: active
+    platform: bian
+    bian_version: "12"
+    is_reference: true
+    reference_fleet_id: null
+    default_top_k: 12
+    documents_prefix: fleets/bian/
+    system_prompt_hint: >
+      You are a BIAN architecture specialist. Prefer official BIAN service domain
+      and business object names. When generating or reviewing service designs,
+      align APIs and aggregates to BIAN control-record style operations.
+    tiers:
+      - tier_id: sales_servicing
+        name: Sales & Servicing
+        description: Customer-facing offer, agreement, and servicing domains.
+        rack_ids: [customer_offer, customer_agreement, party_reference]
+        bian_service_domains:
+          - Customer Offer
+          - Customer Agreement
+          - Party Reference Data Management
+          - Sales Product
+      - tier_id: lending_credit
+        name: Lending & Credit
+        description: Loan lifecycle, credit assessment, collateral.
+        rack_ids: [loan, credit_management, collateral]
+        bian_service_domains:
+          - Loan
+          - Credit Management
+          - Collateral Asset Administration
+          - Customer Offer
+      - tier_id: payments_cards
+        name: Payments & Cards
+        description: Payment order, execution, card authorisation/clearing.
+        rack_ids: [payment_order, payment_execution, card_transaction]
+        bian_service_domains:
+          - Payment Order
+          - Payment Execution
+          - Card Transaction
+          - Current Account
+      - tier_id: risk_compliance
+        name: Risk & Compliance
+        description: Cross-cutting risk, fraud, and regulatory domains.
+        rack_ids: [credit_management, fraud_evaluation]
+        bian_service_domains:
+          - Credit Management
+          - Fraud Evaluation
+          - Regulatory Reporting
+    racks:
+      - rack_id: loan
+        name: Loan
+        description: BIAN Loan service domain — facility, drawdown, repayment.
+        bian_service_domains: [Loan]
+        tier_ids: [lending_credit]
+      - rack_id: credit_management
+        name: Credit Management
+        description: Credit assessment, limits, monitoring.
+        bian_service_domains: [Credit Management]
+        tier_ids: [lending_credit, risk_compliance]
+      - rack_id: collateral
+        name: Collateral Asset Administration
+        description: Collateral registration, valuation, release.
+        bian_service_domains: [Collateral Asset Administration]
+        tier_ids: [lending_credit]
+      - rack_id: customer_offer
+        name: Customer Offer
+        description: Product offers, eligibility, acceptance.
+        bian_service_domains: [Customer Offer]
+        tier_ids: [sales_servicing, lending_credit]
+      - rack_id: customer_agreement
+        name: Customer Agreement
+        description: Customer product agreements and terms.
+        bian_service_domains: [Customer Agreement]
+        tier_ids: [sales_servicing]
+      - rack_id: party_reference
+        name: Party Reference Data Management
+        description: Party identity, relationships, reference data.
+        bian_service_domains: [Party Reference Data Management]
+        tier_ids: [sales_servicing]
+      - rack_id: payment_order
+        name: Payment Order
+        description: Payment initiation and ordering.
+        bian_service_domains: [Payment Order]
+        tier_ids: [payments_cards]
+      - rack_id: payment_execution
+        name: Payment Execution
+        description: Clearing, settlement, execution lifecycle.
+        bian_service_domains: [Payment Execution]
+        tier_ids: [payments_cards]
+      - rack_id: card_transaction
+        name: Card Transaction
+        description: Card auth, clearing, dispute primitives.
+        bian_service_domains: [Card Transaction]
+        tier_ids: [payments_cards]
+      - rack_id: fraud_evaluation
+        name: Fraud Evaluation
+        description: Fraud signals and case handling patterns.
+        bian_service_domains: [Fraud Evaluation]
+        tier_ids: [risk_compliance]
+
+  # ── Banking product fleets (extend BIAN) ──────────────────────────────────
   - fleet_id: consumer_lending
     name: Consumer Lending
-    description: Personal loans, credit cards, mortgages, and consumer credit products.
+    description: Personal loans, credit cards, mortgages — product knowledge on BIAN Loan/Credit backbone.
     icon: "💳"
     status: active
+    platform: bian
+    bian_version: "12"
+    is_reference: false
+    reference_fleet_id: bian
     default_top_k: 8
     documents_prefix: fleets/consumer_lending/
-    system_prompt_hint: "You are a consumer lending specialist. Cite product terms, rates, and eligibility carefully."
+    system_prompt_hint: >
+      You are a consumer lending specialist on a BIAN-aligned platform.
+      Structure services around Loan, Credit Management, Collateral, and Customer Offer.
+      Cite product terms and BIAN domain boundaries; never invent regulatory treatment.
+    tiers:
+      - tier_id: originations
+        name: Originations
+        description: Application, underwriting, offer, booking.
+        rack_ids: [personal_loans, mortgages, credit_cards]
+        bian_service_domains: [Loan, Credit Management, Customer Offer, Collateral Asset Administration]
+      - tier_id: servicing
+        name: Servicing
+        description: Drawdown, repayment, account maintenance.
+        rack_ids: [personal_loans, mortgages, credit_cards]
+        bian_service_domains: [Loan, Customer Agreement]
+      - tier_id: collections_recovery
+        name: Collections & Recovery
+        description: Delinquency, hardship, recovery.
+        rack_ids: [collections]
+        bian_service_domains: [Loan, Credit Management]
     racks:
       - rack_id: personal_loans
         name: Personal Loans
         description: Unsecured personal loan products, eligibility, underwriting rules.
+        bian_service_domains: [Loan, Credit Management, Customer Offer]
+        tier_ids: [originations, servicing]
       - rack_id: mortgages
         name: Mortgages
         description: Home loans, LTV, rate sheets, documentation requirements.
+        bian_service_domains: [Loan, Collateral Asset Administration, Credit Management, Customer Offer]
+        tier_ids: [originations, servicing]
       - rack_id: credit_cards
         name: Credit Cards
         description: Card products, rewards, fees, dispute processes.
+        bian_service_domains: [Loan, Card Transaction, Customer Offer, Customer Agreement]
+        tier_ids: [originations, servicing]
       - rack_id: collections
         name: Collections & Delinquency
         description: Collections playbooks, hardship programs, regulatory constraints.
+        bian_service_domains: [Loan, Credit Management]
+        tier_ids: [collections_recovery]
 
   - fleet_id: customer_relationship
     name: Customer Relationship
-    description: CRM knowledge, service scripts, retention, and customer lifecycle.
+    description: CRM, service, retention — extends BIAN Party, Offer, Agreement domains.
     icon: "🤝"
     status: active
+    platform: bian
+    bian_version: "12"
+    is_reference: false
+    reference_fleet_id: bian
     default_top_k: 8
     documents_prefix: fleets/customer_relationship/
-    system_prompt_hint: "You support customer relationship teams. Be empathetic and policy-accurate."
+    system_prompt_hint: >
+      You support customer relationship teams on a BIAN-aligned CRM backbone.
+      Prefer Party Reference Data Management, Customer Offer, and Customer Agreement semantics.
+    tiers:
+      - tier_id: acquire
+        name: Acquire
+        description: Onboarding and first agreement.
+        rack_ids: [onboarding]
+        bian_service_domains: [Party Reference Data Management, Customer Offer, Customer Agreement]
+      - tier_id: serve
+        name: Serve
+        description: Ongoing service and complaints.
+        rack_ids: [service, complaints]
+        bian_service_domains: [Customer Agreement, Party Reference Data Management]
+      - tier_id: grow_retain
+        name: Grow & Retain
+        description: Retention, loyalty, win-back.
+        rack_ids: [retention]
+        bian_service_domains: [Customer Offer, Sales Product]
     racks:
       - rack_id: onboarding
         name: Onboarding
         description: KYC, welcome journeys, first-90-day playbooks.
+        bian_service_domains: [Party Reference Data Management, Customer Offer, Customer Agreement]
+        tier_ids: [acquire]
       - rack_id: service
         name: Service & Support
         description: Support macros, escalation paths, SLA definitions.
+        bian_service_domains: [Customer Agreement, Party Reference Data Management]
+        tier_ids: [serve]
       - rack_id: retention
         name: Retention & Win-back
         description: Churn plays, offers, loyalty programs.
+        bian_service_domains: [Customer Offer, Sales Product]
+        tier_ids: [grow_retain]
       - rack_id: complaints
         name: Complaints & Ombudsman
         description: Complaint handling, regulatory reporting, root-cause.
+        bian_service_domains: [Customer Agreement, Regulatory Reporting]
+        tier_ids: [serve]
+
+  - fleet_id: payments
+    name: Payments
+    description: Payment initiation, execution, cards — BIAN Payment Order / Execution backbone.
+    icon: "💸"
+    status: active
+    platform: bian
+    bian_version: "12"
+    is_reference: false
+    reference_fleet_id: bian
+    default_top_k: 8
+    documents_prefix: fleets/payments/
+    system_prompt_hint: >
+      You are a payments domain assistant. Align designs to Payment Order, Payment Execution,
+      and Card Transaction BIAN domains. Be precise on rails, cut-offs, and failure handling.
+    tiers:
+      - tier_id: initiation
+        name: Initiation
+        description: Ordering and authorisation.
+        rack_ids: [payment_initiation, cards]
+        bian_service_domains: [Payment Order, Card Transaction]
+      - tier_id: clearing_settlement
+        name: Clearing & Settlement
+        description: Execution and settlement lifecycle.
+        rack_ids: [clearing]
+        bian_service_domains: [Payment Execution]
+      - tier_id: exceptions
+        name: Exceptions & Investigations
+        description: Returns, recalls, investigations.
+        rack_ids: [investigations]
+        bian_service_domains: [Payment Execution, Fraud Evaluation]
+    racks:
+      - rack_id: payment_initiation
+        name: Payment Initiation
+        description: Customer and corporate payment initiation channels.
+        bian_service_domains: [Payment Order]
+        tier_ids: [initiation]
+      - rack_id: clearing
+        name: Clearing & Settlement
+        description: Clearing rules, settlement windows, failed payments.
+        bian_service_domains: [Payment Execution]
+        tier_ids: [clearing_settlement]
+      - rack_id: cards
+        name: Cards
+        description: Auth, clearing, chargebacks for card transactions.
+        bian_service_domains: [Card Transaction, Payment Execution]
+        tier_ids: [initiation]
+      - rack_id: investigations
+        name: Investigations
+        description: Payment investigations, recalls, exception queues.
+        bian_service_domains: [Payment Execution, Fraud Evaluation]
+        tier_ids: [exceptions]
 
   - fleet_id: insurance
     name: Insurance
-    description: Underwriting, claims, policies, and insurance product knowledge.
+    description: Underwriting, claims, policies — product knowledge (BIAN-adjacent where applicable).
     icon: "🛡️"
     status: active
+    platform: bian
+    bian_version: "12"
+    is_reference: false
+    reference_fleet_id: bian
     default_top_k: 10
     documents_prefix: fleets/insurance/
-    system_prompt_hint: "You are an insurance domain assistant. Never invent coverage; always cite policy language."
+    system_prompt_hint: >
+      You are an insurance domain assistant. Never invent coverage; always cite policy language.
+      Where banking integration applies, align party and agreement concepts to BIAN.
+    tiers:
+      - tier_id: underwrite
+        name: Underwrite
+        description: Risk selection and pricing.
+        rack_ids: [underwriting]
+        bian_service_domains: [Customer Offer, Party Reference Data Management]
+      - tier_id: policy_admin
+        name: Policy Administration
+        description: Wordings and policy lifecycle.
+        rack_ids: [policies]
+        bian_service_domains: [Customer Agreement]
+      - tier_id: claims_lifecycle
+        name: Claims Lifecycle
+        description: FNOL through settlement.
+        rack_ids: [claims]
+        bian_service_domains: []
+      - tier_id: reinsurance_tier
+        name: Reinsurance
+        description: Treaty and facultative.
+        rack_ids: [reinsurance]
+        bian_service_domains: []
     racks:
       - rack_id: underwriting
         name: Underwriting
         description: Risk guidelines, rating factors, referral rules.
+        bian_service_domains: [Customer Offer, Party Reference Data Management]
+        tier_ids: [underwrite]
       - rack_id: claims
         name: Claims
         description: FNOL, adjudication, fraud indicators, settlement.
+        bian_service_domains: [Fraud Evaluation]
+        tier_ids: [claims_lifecycle]
       - rack_id: policies
         name: Policies & Wordings
         description: Policy wordings, endorsements, exclusions.
+        bian_service_domains: [Customer Agreement]
+        tier_ids: [policy_admin]
       - rack_id: reinsurance
         name: Reinsurance
         description: Treaty terms, facultative placements, recoveries.
+        bian_service_domains: []
+        tier_ids: [reinsurance_tier]
 
+  # ── Non-banking fleets (generic platform) ─────────────────────────────────
   - fleet_id: supply_chain
     name: Supply Chain
     description: Procurement, logistics, inventory, and vendor management.
     icon: "📦"
     status: active
+    platform: generic
+    is_reference: false
+    reference_fleet_id: null
     default_top_k: 8
     documents_prefix: fleets/supply_chain/
     system_prompt_hint: "You assist supply-chain operations. Prefer precise SKUs, lead times, and SLAs."
+    tiers:
+      - tier_id: source
+        name: Source
+        rack_ids: [procurement, vendors]
+      - tier_id: move_store
+        name: Move & Store
+        rack_ids: [logistics, inventory]
     racks:
       - rack_id: procurement
         name: Procurement
         description: Sourcing, RFQs, contract templates, preferred vendors.
+        tier_ids: [source]
       - rack_id: logistics
         name: Logistics
         description: Shipping modes, Incoterms, carrier SLAs, tracking.
+        tier_ids: [move_store]
       - rack_id: inventory
         name: Inventory
         description: Safety stock, warehouse ops, cycle counts.
+        tier_ids: [move_store]
       - rack_id: vendors
         name: Vendor Management
         description: Onboarding, scorecards, risk and compliance.
+        tier_ids: [source]
 
   - fleet_id: sales_marketing
     name: Sales & Marketing
     description: Product messaging, battlecards, campaigns, and sales enablement.
     icon: "📈"
     status: active
+    platform: generic
+    is_reference: false
+    reference_fleet_id: null
     default_top_k: 8
     documents_prefix: fleets/sales_marketing/
     system_prompt_hint: "You support sales and marketing. Stay on-brand and fact-check competitive claims."
+    tiers:
+      - tier_id: enable
+        name: Enable
+        rack_ids: [enablement, product_marketing]
+      - tier_id: demand
+        name: Demand
+        rack_ids: [campaigns, competitive]
     racks:
       - rack_id: enablement
         name: Sales Enablement
         description: Battlecards, objection handling, demo scripts.
+        tier_ids: [enable]
       - rack_id: campaigns
         name: Campaigns
         description: Campaign briefs, channel playbooks, attribution.
+        tier_ids: [demand]
       - rack_id: product_marketing
         name: Product Marketing
         description: Positioning, messaging frameworks, launch kits.
+        tier_ids: [enable]
       - rack_id: competitive
         name: Competitive Intelligence
         description: Competitor briefs, win/loss insights.
+        tier_ids: [demand]
