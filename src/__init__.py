@@ -1,1 +1,1 @@
-# RAG system package
+"""futureim-rag-fleet source package."""
