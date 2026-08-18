@@ -1,2 +1,21 @@
-project_id = "your-gcp-project-id"
-region     = "us-central1"
+# =============================================================================
+# DEV — copy to terraform.tfvars and fill in your values (do NOT commit secrets)
+#
+#   cp terraform.tfvars.example terraform.tfvars
+#   # edit terraform.tfvars
+#   terraform init && terraform plan && terraform apply
+# =============================================================================
+
+# --- Required: GCP project ---
+project_id = "your-gcp-project-id"          # e.g. "futureim-rag-dev"
+
+# --- Region (Vertex AI, Cloud Run, GCS, Memorystore, Eventarc) ---
+region     = "us-central1"                  # e.g. us-central1 | asia-south1 | europe-west1
+
+# --- Availability zone (optional; used where zonal resources are required) ---
+# zone     = "us-central1-a"                # e.g. us-central1-a | asia-south1-a
+
+# --- Optional overrides (uncomment as needed) ---
+# force_destroy          = true             # allow bucket destroy in dev
+# enable_vector_search   = true
+# ingestion_image        = "REGION-docker.pkg.dev/PROJECT/rag/ingestion:latest"

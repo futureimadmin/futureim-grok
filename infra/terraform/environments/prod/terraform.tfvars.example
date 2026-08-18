@@ -1,2 +1,18 @@
-project_id = "your-prod-gcp-project-id"
-region     = "us-central1"
+# =============================================================================
+# PROD — copy to terraform.tfvars and fill in your values (do NOT commit secrets)
+#
+#   cp terraform.tfvars.example terraform.tfvars
+#   terraform init && terraform plan && terraform apply
+# =============================================================================
+
+# --- Required: GCP project ---
+project_id = "your-prod-gcp-project-id"     # e.g. "futureim-rag-prod"
+
+# --- Region ---
+region     = "us-central1"                  # e.g. us-central1 | asia-south1 | europe-west1
+
+# --- Availability zone (optional) ---
+# zone     = "us-central1-a"
+
+# --- Prod safety ---
+# force_destroy = false
