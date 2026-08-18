@@ -28,6 +28,16 @@ def get_registry(path: Optional[str] = None) -> FleetRegistry:
         logger.warning("Fleet registry not found at %s – empty registry", p)
         return FleetRegistry(fleets=[])
     data = _load_yaml(p)
+    # Optional extension file: config/fleets/banking_extensions.yaml
+    ext = p.parent / "banking_extensions.yaml"
+    if ext.exists():
+        extra = _load_yaml(ext)
+        extra_fleets = extra.get("fleets") if isinstance(extra, dict) else None
+        if extra_fleets is None and isinstance(extra, dict):
+            extra_fleets = []
+        if extra_fleets:
+            data.setdefault("fleets", []).extend(extra_fleets)
+            logger.info("Merged %d fleets from %s", len(extra_fleets), ext)
     fleets: List[Fleet] = []
     for raw in data.get("fleets", []):
         racks = [Rack(**r) for r in raw.pop("racks", [])]
