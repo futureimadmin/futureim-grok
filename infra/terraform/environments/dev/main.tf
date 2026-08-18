@@ -3,12 +3,9 @@
  *
  * Deploys:
  *  - Custom VPC with four subnets (public-ingress, private-ingestion,
- *    private-serving, private-data) that enforce the architectural
- *    boundaries described in the RAG Architecture document.
+ *    private-serving, private-data)
  *  - Required APIs, GCS buckets, Memorystore Redis, Pub/Sub, Artifact Registry
  *  - Least-privilege service accounts for each plane
- *  - Eventarc trigger (GCS object finalized → Cloud Run ingestion)
- *  - Vertex AI Vector Search index + endpoint
  *
  * Usage:
  *   export TF_VAR_project_id=your-gcp-project
@@ -30,12 +27,6 @@ terraform {
       version = ">= 5.30"
     }
   }
-
-  # Uncomment and configure for remote state in production
-  # backend "gcs" {
-  #   bucket = "your-tf-state-bucket"
-  #   prefix = "rag/dev"
-  # }
 }
 
 provider "google" {
@@ -52,10 +43,6 @@ data "google_project" "current" {
   project_id = var.project_id
 }
 
-# -----------------------------------------------------------------------------
-# VPC – clear network boundaries
-# -----------------------------------------------------------------------------
-
 module "vpc" {
   source = "../../modules/vpc"
 
@@ -68,10 +55,6 @@ module "vpc" {
   private_data_cidr      = "10.10.3.0/24"
 }
 
-# -----------------------------------------------------------------------------
-# Shared services (GCS, Redis, Pub/Sub, Artifact Registry, private services)
-# -----------------------------------------------------------------------------
-
 module "services" {
   source = "../../modules/services"
 
@@ -79,12 +62,8 @@ module "services" {
   region          = var.region
   network_id      = module.vpc.network_id
   redis_memory_gb = 1
-  force_destroy   = true # safe for dev
+  force_destroy   = true
 }
-
-# -----------------------------------------------------------------------------
-# IAM – plane-specific service accounts
-# -----------------------------------------------------------------------------
 
 module "iam" {
   source = "../../modules/iam"
@@ -92,10 +71,6 @@ module "iam" {
   project_id     = var.project_id
   project_number = data.google_project.current.number
 }
-
-# -----------------------------------------------------------------------------
-# Serverless VPC Access connector so Cloud Run can reach private Redis / data plane
-# -----------------------------------------------------------------------------
 
 resource "google_vpc_access_connector" "rag_connector" {
   name          = "rag-connector"
@@ -109,10 +84,6 @@ resource "google_vpc_access_connector" "rag_connector" {
   depends_on = [module.vpc]
 }
 
-# -----------------------------------------------------------------------------
-# Eventarc → Cloud Run ingestion pipeline
-# -----------------------------------------------------------------------------
-
 module "eventarc" {
   source = "../../modules/eventarc"
 
@@ -124,8 +95,6 @@ module "eventarc" {
   eventarc_sa_email  = module.iam.eventarc_sa_email
   vpc_connector_id   = google_vpc_access_connector.rag_connector.id
   dlq_topic          = "rag-ingestion-dlq"
-  # After first image build, set:
-  # ingestion_image = "${module.services.artifact_registry_url}/ingestion:latest"
   ingestion_image    = "us-docker.pkg.dev/cloudrun/container/hello"
 
   depends_on = [
@@ -134,10 +103,6 @@ module "eventarc" {
     google_vpc_access_connector.rag_connector,
   ]
 }
-
-# -----------------------------------------------------------------------------
-# Vertex AI Vector Search
-# -----------------------------------------------------------------------------
 
 module "vector_search" {
   source = "../../modules/vector_search"

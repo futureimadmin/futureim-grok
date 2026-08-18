@@ -1,11 +1,5 @@
 /**
  * Production environment root module for the RAG system.
- *
- * Differences from dev:
- *  - Remote state (GCS backend)
- *  - force_destroy = false
- *  - Higher Redis memory / Vector Search replicas
- *  - public_endpoint_enabled = false for private only
  */
 
 terraform {
@@ -22,9 +16,9 @@ terraform {
     }
   }
 
-  backend "gcs" {
-    # terraform init -backend-config=backend.hcl
-  }
+  # Configure remote state via:
+  #   terraform init -backend-config=backend.hcl
+  backend "gcs" {}
 }
 
 provider "google" {
@@ -47,10 +41,10 @@ module "vpc" {
   project_id             = var.project_id
   region                 = var.region
   network_name           = "rag-vpc"
-  public_ingress_cidr    = "10.20.0.0/24"
-  private_ingestion_cidr = "10.20.1.0/24"
-  private_serving_cidr   = "10.20.2.0/24"
-  private_data_cidr      = "10.20.3.0/24"
+  public_ingress_cidr    = "10.10.0.0/24"
+  private_ingestion_cidr = "10.10.1.0/24"
+  private_serving_cidr   = "10.10.2.0/24"
+  private_data_cidr      = "10.10.3.0/24"
 }
 
 module "services" {
@@ -75,24 +69,11 @@ resource "google_vpc_access_connector" "rag_connector" {
   project       = var.project_id
   region        = var.region
   network       = module.vpc.network_name
-  ip_cidr_range = "10.9.0.0/28"
+  ip_cidr_range = "10.8.0.0/28"
   min_instances = 2
   max_instances = 10
 
   depends_on = [module.vpc]
-}
-
-module "vector_search" {
-  source = "../../modules/vector_search"
-
-  project_id                  = var.project_id
-  region                      = var.region
-  dimensions                  = 768
-  approximate_neighbors_count = 50
-  machine_type                = "e2-standard-4"
-  min_replica_count           = 2
-  max_replica_count           = 10
-  public_endpoint_enabled     = false
 }
 
 module "eventarc" {
@@ -106,15 +87,24 @@ module "eventarc" {
   eventarc_sa_email  = module.iam.eventarc_sa_email
   vpc_connector_id   = google_vpc_access_connector.rag_connector.id
   dlq_topic          = "rag-ingestion-dlq"
-  max_instances      = 50
-  vector_index_id    = module.vector_search.index_id
-  vector_endpoint_id = module.vector_search.endpoint_id
-  ingestion_image    = "us-docker.pkg.dev/cloudrun/container/hello"
+  ingestion_image    = "${module.services.artifact_registry_url}/ingestion:latest"
 
   depends_on = [
     module.services,
     module.iam,
-    module.vector_search,
     google_vpc_access_connector.rag_connector,
   ]
+}
+
+module "vector_search" {
+  source = "../../modules/vector_search"
+
+  project_id                  = var.project_id
+  region                      = var.region
+  dimensions                  = 768
+  approximate_neighbors_count = 50
+  machine_type                = "e2-standard-4"
+  min_replica_count           = 2
+  max_replica_count           = 10
+  public_endpoint_enabled     = false
 }
