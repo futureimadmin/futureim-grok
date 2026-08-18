@@ -19,8 +19,9 @@ variable "approximate_neighbors_count" {
 }
 
 variable "machine_type" {
-  type    = string
-  default = "e2-standard-2"
+  description = "Machine type for dedicated serving resources"
+  type        = string
+  default     = "e2-standard-2"
 }
 
 variable "min_replica_count" {
@@ -34,12 +35,13 @@ variable "max_replica_count" {
 }
 
 variable "public_endpoint_enabled" {
-  type    = bool
-  default = true
+  description = "Expose a public endpoint (still requires IAM). Prefer private for production."
+  type        = bool
+  default     = true
 }
 
 variable "contents_delta_uri" {
-  description = "Optional GCS URI for bulk index updates"
+  description = "Optional GCS URI for bulk index updates (gs://bucket/path/)"
   type        = string
   default     = null
 }

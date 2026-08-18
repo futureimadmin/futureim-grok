@@ -3,6 +3,6 @@ variable "project_id" {
 }
 
 variable "project_number" {
-  description = "Numeric project number (needed for serverless robot SA and Eventarc SA)"
+  description = "Numeric project number (needed for serverless robot SA)"
   type        = string
 }

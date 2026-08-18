@@ -35,7 +35,7 @@ variable "vpc_connector_id" {
 variable "ingestion_image" {
   description = "Container image for the ingestion worker"
   type        = string
-  default     = "us-docker.pkg.dev/cloudrun/container/hello" # replace after first build
+  default     = "us-docker.pkg.dev/cloudrun/container/hello"
 }
 
 variable "dlq_topic" {
