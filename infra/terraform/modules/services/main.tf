@@ -1,7 +1,6 @@
 /**
  * Core GCP services required by the RAG system.
- * Enables APIs and provisions shared managed services that sit
- * behind the network boundaries defined in the VPC module.
+ * Enables APIs and provisions shared managed services behind VPC boundaries.
  */
 
 terraform {
@@ -12,10 +11,6 @@ terraform {
     }
   }
 }
-
-# -----------------------------------------------------------------------------
-# Required APIs
-# -----------------------------------------------------------------------------
 
 locals {
   required_apis = [
@@ -46,10 +41,6 @@ resource "google_project_service" "apis" {
   service            = each.value
   disable_on_destroy = false
 }
-
-# -----------------------------------------------------------------------------
-# Document landing zone (GCS)
-# -----------------------------------------------------------------------------
 
 resource "google_storage_bucket" "documents" {
   name                        = "${var.project_id}-rag-documents"
@@ -87,9 +78,22 @@ resource "google_storage_bucket" "processed" {
   depends_on = [google_project_service.apis]
 }
 
-# -----------------------------------------------------------------------------
-# Semantic cache – Memorystore Redis (private, in data plane)
-# -----------------------------------------------------------------------------
+resource "google_compute_global_address" "private_ip_alloc" {
+  name          = "rag-private-services"
+  project       = var.project_id
+  purpose       = "VPC_PEERING"
+  address_type  = "INTERNAL"
+  prefix_length = 16
+  network       = var.network_id
+}
+
+resource "google_service_networking_connection" "private_vpc_connection" {
+  network                 = var.network_id
+  service                 = "servicenetworking.googleapis.com"
+  reserved_peering_ranges = [google_compute_global_address.private_ip_alloc.name]
+
+  depends_on = [google_project_service.apis]
+}
 
 resource "google_redis_instance" "semantic_cache" {
   name                    = "rag-semantic-cache"
@@ -110,28 +114,6 @@ resource "google_redis_instance" "semantic_cache" {
   ]
 }
 
-# Private Service Access for Redis / future AlloyDB etc.
-resource "google_compute_global_address" "private_ip_alloc" {
-  name          = "rag-private-services"
-  project       = var.project_id
-  purpose       = "VPC_PEERING"
-  address_type  = "INTERNAL"
-  prefix_length = 16
-  network       = var.network_id
-}
-
-resource "google_service_networking_connection" "private_vpc_connection" {
-  network                 = var.network_id
-  service                 = "servicenetworking.googleapis.com"
-  reserved_peering_ranges = [google_compute_global_address.private_ip_alloc.name]
-
-  depends_on = [google_project_service.apis]
-}
-
-# -----------------------------------------------------------------------------
-# Pub/Sub topics for ingestion events + DLQ
-# -----------------------------------------------------------------------------
-
 resource "google_pubsub_topic" "document_events" {
   name    = "rag-document-events"
   project = var.project_id
@@ -146,10 +128,6 @@ resource "google_pubsub_topic" "ingestion_dlq" {
   depends_on = [google_project_service.apis]
 }
 
-# -----------------------------------------------------------------------------
-# Artifact Registry for container images
-# -----------------------------------------------------------------------------
-
 resource "google_artifact_registry_repository" "rag" {
   location      = var.region
   project       = var.project_id
@@ -159,10 +137,6 @@ resource "google_artifact_registry_repository" "rag" {
 
   depends_on = [google_project_service.apis]
 }
-
-# -----------------------------------------------------------------------------
-# Secret Manager – placeholders for sensitive config
-# -----------------------------------------------------------------------------
 
 resource "google_secret_manager_secret" "redis_auth" {
   secret_id = "rag-redis-auth"
