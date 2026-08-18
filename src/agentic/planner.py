@@ -1,8 +1,5 @@
 """
 Planner — decompose a user query into sub-goals (Agent Core).
-
-Uses lightweight rule heuristics so the agent works without an LLM;
-when Vertex is available it can ask the model for a better plan.
 """
 
 from __future__ import annotations
@@ -21,10 +18,6 @@ class Planner:
         self.cfg = config or get_config()
 
     def decompose(self, query: str) -> List[str]:
-        """
-        Return ordered sub-goals for the agent to execute.
-        Always includes a final 'synthesize answer' goal.
-        """
         q = (query or "").strip()
         if not q:
             return ["retrieve relevant context", "synthesize answer"]
