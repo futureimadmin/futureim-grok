@@ -1,22 +1,8 @@
 /**
  * Eventarc + Cloud Run ingestion pipeline.
  *
- * Flow:
- *   GCS object finalized (documents bucket)
- *        │
- *        ▼
- *   Eventarc trigger  ──►  Cloud Run (rag-ingestion)
- *        │                       │
- *        │                       ├─ download object
- *        │                       ├─ chunk (semantic)
- *        │                       ├─ embed (Vertex AI)
- *        │                       ├─ upsert vector store
- *        │                       └─ write doc store / mark processed
- *        │
- *   Dead-letter → Pub/Sub DLQ topic (already created in services module)
- *
- * The Cloud Run service runs in the private-ingestion network plane
- * via the Serverless VPC Access connector.
+ * GCS object finalized → Eventarc → Cloud Run (rag-ingestion)
+ * Dead-letter → Pub/Sub DLQ topic
  */
 
 terraform {
@@ -28,15 +14,11 @@ terraform {
   }
 }
 
-# -----------------------------------------------------------------------------
-# Cloud Run – Ingestion worker
-# -----------------------------------------------------------------------------
-
 resource "google_cloud_run_v2_service" "ingestion" {
   name     = "rag-ingestion"
   project  = var.project_id
   location = var.region
-  ingress  = "INGRESS_TRAFFIC_INTERNAL_ONLY" # only Eventarc / internal callers
+  ingress  = "INGRESS_TRAFFIC_INTERNAL_ONLY"
 
   template {
     service_account = var.ingestion_sa_email
@@ -87,14 +69,13 @@ resource "google_cloud_run_v2_service" "ingestion" {
       }
       env {
         name  = "CHUNK_SIZE"
-        value = "512"
+        value = "256"
       }
       env {
         name  = "CHUNK_OVERLAP"
-        value = "64"
+        value = "32"
       }
 
-      # Optional: vector index / endpoint once provisioned
       dynamic "env" {
         for_each = var.vector_index_id != "" ? [1] : []
         content {
@@ -110,19 +91,14 @@ resource "google_cloud_run_v2_service" "ingestion" {
         }
       }
     }
-
-    timeout = "900s" # long-running docs
   }
 
-  traffic {
-    type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
-    percent = 100
+  labels = {
+    component = "rag-ingestion"
+    plane     = "ingestion"
   }
-
-  depends_on = [var.apis_dependency]
 }
 
-# Allow Eventarc (and Pub/Sub push if used) to invoke the service
 resource "google_cloud_run_v2_service_iam_member" "eventarc_invoker" {
   project  = var.project_id
   location = var.region
@@ -131,7 +107,6 @@ resource "google_cloud_run_v2_service_iam_member" "eventarc_invoker" {
   member   = "serviceAccount:${var.eventarc_sa_email}"
 }
 
-# Also allow the ingestion SA itself (for retries / manual triggers)
 resource "google_cloud_run_v2_service_iam_member" "ingestion_self_invoker" {
   project  = var.project_id
   location = var.region
@@ -140,16 +115,11 @@ resource "google_cloud_run_v2_service_iam_member" "ingestion_self_invoker" {
   member   = "serviceAccount:${var.ingestion_sa_email}"
 }
 
-# -----------------------------------------------------------------------------
-# Eventarc trigger – GCS object finalized → Cloud Run
-# -----------------------------------------------------------------------------
-
 resource "google_eventarc_trigger" "gcs_object_finalized" {
   name     = "rag-gcs-object-finalized"
   project  = var.project_id
   location = var.region
 
-  # Cloud Storage as the event source
   matching_criteria {
     attribute = "type"
     value     = "google.cloud.storage.object.v1.finalized"
@@ -164,13 +134,12 @@ resource "google_eventarc_trigger" "gcs_object_finalized" {
     cloud_run_service {
       service = google_cloud_run_v2_service.ingestion.name
       region  = var.region
-      path    = "/events" # dedicated CloudEvent endpoint
+      path    = "/events"
     }
   }
 
   service_account = var.eventarc_sa_email
 
-  # Send failed deliveries to the DLQ topic
   transport {
     pubsub {
       topic = "projects/${var.project_id}/topics/${var.dlq_topic}"
