@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
-"""Seed BIAN reference markdown into DocStore (and Vector Store when GCP available)."""
+"""
+Seed BIAN reference markdown into the DocStore (and optionally Vector Store).
+
+Usage (from repo root):
+  set PYTHONPATH=.
+  python scripts/seed_bian_knowledge.py
+
+Walks fleets/bian/**/*.md, chunks with fleet_id=bian metadata, dual-writes
+to DocStore. Volume is not capped.
+"""
 
 from __future__ import annotations
 
@@ -16,57 +25,41 @@ from src.query.doc_store import DocStore
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("seed-bian")
+
 BIAN_ROOT = ROOT / "fleets" / "bian"
 
 
 def main() -> int:
     if not BIAN_ROOT.exists():
-        logger.error("Missing %s", BIAN_ROOT)
+        logger.error("Missing %s — create BIAN markdown under fleets/bian/", BIAN_ROOT)
         return 1
+
     chunker = Chunker()
     store = DocStore()
-    total = 0
+    total_chunks = 0
     files = sorted(BIAN_ROOT.rglob("*.md"))
-    logger.info("Found %d BIAN markdown files", len(files))
+    logger.info("Found %d BIAN markdown files under %s", len(files), BIAN_ROOT)
+
     for path in files:
         rel = path.relative_to(ROOT).as_posix()
         text = path.read_text(encoding="utf-8")
-        parts = path.relative_to(BIAN_ROOT).parts
-        rack_id = parts[0] if parts else "general"
-        domain = rack_id.replace("_", " ").title()
-        chunks = chunker.chunk_document(
+        rack_id = path.parent.name
+        chunks = chunker.chunk_text(
             text,
-            source_path=rel,
-            doc_type=DocType.REFERENCE,
-            product="bian",
+            source_uri=rel,
+            doc_type=DocType.MARKDOWN,
+            access_level=AccessLevel.INTERNAL,
             fleet_id="bian",
             rack_id=rack_id,
-            bian_service_domain=domain,
-            bian_version="12",
-            is_bian_reference=True,
-            access_level=AccessLevel.INTERNAL,
+            product="bian",
+            section_heading=path.stem,
         )
-        records = [
-            {"id": c.chunk_id, "text": c.text, "metadata": c.metadata.model_dump(mode="json")}
-            for c in chunks
-        ]
-        n = store.put_many(records)
-        total += n
-        logger.info("Seeded %s → %d chunks (%s)", rel, n, domain)
-        try:
-            from src.ingestion.embedder import Embedder
-            from src.query.vector_store import VectorStore
+        for ch in chunks:
+            store.put(ch.chunk_id, ch.text, ch.metadata.model_dump())
+            total_chunks += 1
+        logger.info("Seeded %s → %d chunks", rel, len(chunks))
 
-            embedder = Embedder()
-            vec_records = embedder.process_chunks(chunks)
-            for rec, ch in zip(vec_records, chunks):
-                md = rec.setdefault("metadata", {})
-                md.update(ch.metadata.model_dump(mode="json"))
-                md["namespace"] = f"bian/{rack_id}"
-            VectorStore().upsert(vec_records)
-        except Exception as e:
-            logger.info("Vector upsert skipped (%s)", e)
-    logger.info("Done. Total BIAN chunks: %d", total)
+    logger.info("Done. Total chunks written: %d", total_chunks)
     return 0
 
 
