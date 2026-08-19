@@ -192,6 +192,7 @@ class Orchestrator:
             filters["product"] = product
 
         variants = self.expander.expand(clean, max_variants=2)
+        logger.info("query variants=%d", len(variants))
         use_hyde = plan.query_type.value in ("analytical", "comparative", "multi_part")
         hyde_vec = self.hyde.embed_hypothesis(clean) if use_hyde else None
 
@@ -204,7 +205,11 @@ class Orchestrator:
                 access_level=access_level,
                 bian_version=fleet.bian_version if fleet else None,
             )
-            logger.info("BIAN dual-pull scope=%s domains=%s", describe_scope(fleet, rack), domains)
+            logger.info(
+                "BIAN dual-pull scope=%s domains=%s",
+                describe_scope(fleet, rack),
+                domains,
+            )
             candidates = self.retriever.retrieve_dual(
                 clean,
                 product_filters=filters,
@@ -237,7 +242,12 @@ class Orchestrator:
         if rack and rack.tier_ids:
             tier = fleet.tier(rack.tier_ids[0]) if fleet else None
         prompt = build_prompt(
-            clean, top_chunks, fleet=fleet, rack=rack, tier=tier, bian_domains=bian_domains or None
+            clean,
+            top_chunks,
+            fleet=fleet,
+            rack=rack,
+            tier=tier,
+            bian_domains=bian_domains or None,
         )
         raw_answer = self.generator.generate(prompt)
         answer, citations, faith = post_process(raw_answer, top_chunks)
