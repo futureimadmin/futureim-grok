@@ -6,15 +6,13 @@ and performs the dual write described in the architecture:
   2. Doc store write (id → raw text + full metadata)
 
 This component never touches a live user request.
+Google/Vertex imports are lazy so seed scripts and preview mode work offline.
 """
 
 from __future__ import annotations
 
 import logging
 from typing import List, Optional
-
-from google.cloud import aiplatform
-from vertexai.language_models import TextEmbeddingInput, TextEmbeddingModel
 
 from src.common.config import EmbeddingConfig, get_config
 from src.common.models import Chunk
@@ -33,14 +31,25 @@ class Embedder:
         self.project = project_id or cfg.project_id
         self.region = region or cfg.region
         self.cfg = config or cfg.embedding
+        self.model = None
+        self._init_error: Optional[str] = None
+        try:
+            from google.cloud import aiplatform
+            from vertexai.language_models import TextEmbeddingModel
 
-        aiplatform.init(project=self.project, location=self.region)
-        self.model = TextEmbeddingModel.from_pretrained(self.cfg.model)
+            aiplatform.init(project=self.project, location=self.region)
+            self.model = TextEmbeddingModel.from_pretrained(self.cfg.model)
+        except Exception as e:
+            self._init_error = str(e)
+            logger.warning("Embedder Vertex init deferred/unavailable: %s", e)
 
     def embed_texts(self, texts: List[str]) -> List[List[float]]:
-        """Batch embed with Vertex AI. Returns list of float vectors."""
         if not texts:
             return []
+        if self.model is None:
+            raise RuntimeError(f"Vertex embedder unavailable: {self._init_error}")
+        from vertexai.language_models import TextEmbeddingInput
+
         inputs = [TextEmbeddingInput(text=t, task_type="RETRIEVAL_DOCUMENT") for t in texts]
         batch_size = self.cfg.batch_size
         all_embeddings: List[List[float]] = []
@@ -51,21 +60,15 @@ class Embedder:
         return all_embeddings
 
     def embed_query(self, query: str) -> List[float]:
-        """Single query embedding (task_type=RETRIEVAL_QUERY)."""
+        if self.model is None:
+            raise RuntimeError(f"Vertex embedder unavailable: {self._init_error}")
+        from vertexai.language_models import TextEmbeddingInput
+
         inp = TextEmbeddingInput(text=query, task_type="RETRIEVAL_QUERY")
         result = self.model.get_embeddings([inp])
         return result[0].values
 
     def process_chunks(self, chunks: List[Chunk]) -> List[dict]:
-        """
-        Returns a list of records ready for vector-store upsert:
-        {
-          "id": chunk_id,
-          "embedding": [...],
-          "metadata": {...}   # no raw text
-        }
-        and (separately) the caller should write the raw text to the doc store.
-        """
         texts = [c.text for c in chunks]
         vectors = self.embed_texts(texts)
         records = []
@@ -77,7 +80,6 @@ class Embedder:
                     "id": chunk.chunk_id,
                     "embedding": vec,
                     "metadata": meta,
-                    # raw text is intentionally NOT stored in the vector index
                 }
             )
         logger.info("Embedded %d chunks with model %s", len(records), self.cfg.model)
