@@ -1,12 +1,5 @@
 """
-Embedder – converts Chunk objects into vectors using Vertex AI embeddings
-and performs the dual write described in the architecture:
-
-  1. Vector store upsert (id + float[] + metadata)  – no raw text
-  2. Doc store write (id → raw text + full metadata)
-
-This component never touches a live user request.
-Google/Vertex imports are lazy so seed scripts and preview mode work offline.
+Embedder – Vertex AI embeddings + dual-write records (vector metadata, no raw text).
 """
 
 from __future__ import annotations

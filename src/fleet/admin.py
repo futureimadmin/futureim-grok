@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import yaml
 
@@ -18,23 +18,42 @@ logger = logging.getLogger(__name__)
 
 
 def _dump_registry(reg: FleetRegistry, path: Path) -> None:
-    payload: Dict[str, Any] = {"fleets": []}
+    payload: Dict[str, Any] = {
+        "bian_version_default": reg.bian_version_default,
+        "fleets": [],
+    }
     for f in reg.fleets:
-        entry = {
+        entry: Dict[str, Any] = {
             "fleet_id": f.fleet_id,
             "name": f.name,
             "description": f.description,
             "icon": f.icon,
             "status": f.status.value,
+            "platform": f.platform,
+            "bian_version": f.bian_version,
+            "is_reference": f.is_reference,
+            "reference_fleet_id": f.reference_fleet_id,
             "default_top_k": f.default_top_k,
             "documents_prefix": f.documents_prefix or f"fleets/{f.fleet_id}/",
             "system_prompt_hint": f.system_prompt_hint,
+            "tiers": [
+                {
+                    "tier_id": t.tier_id,
+                    "name": t.name,
+                    "description": t.description,
+                    "rack_ids": list(t.rack_ids),
+                    "bian_service_domains": list(t.bian_service_domains),
+                }
+                for t in f.tiers
+            ],
             "racks": [
                 {
                     "rack_id": r.rack_id,
                     "name": r.name,
                     "description": r.description,
                     **({"top_k": r.top_k} if r.top_k is not None else {}),
+                    "bian_service_domains": list(r.bian_service_domains),
+                    "tier_ids": list(r.tier_ids),
                 }
                 for r in f.racks
             ],
