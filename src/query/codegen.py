@@ -1,5 +1,5 @@
 """
-BIAN-aligned code generation for a Fleet / Rack scope.
+BIAN-aligned (Semantic API action terms; scaffolding only) code generation for a Fleet / Rack scope.
 
 Emits service stubs that map only to active BIAN service domains for the
 selected rack (and optional tier). Product policy stays in RAG context;
@@ -11,6 +11,12 @@ Canonical operation patterns (BIAN-inspired):
 
 from __future__ import annotations
 
+BIAN_API_HINT = (
+    "Map each domain to BIAN Semantic API action terms (Initiate/Update/Control/Execute/Retrieve). "
+    "Prefer ISO20022-oriented field names for payment-related domains. "
+    "Stubs are scaffolding only — require authZ, audit, and human review before production."
+)
+
 import re
 from typing import Dict, List, Optional, Sequence
 
@@ -18,7 +24,6 @@ from src.common.models import RetrievedChunk
 from src.fleet.models import Fleet, Rack, Tier
 from src.query.bian_context import resolve_bian_domains
 
-# Standard BIAN-style service operations per domain (extend as knowledge grows)
 DOMAIN_OPERATIONS: Dict[str, List[str]] = {
     "Loan": ["Initiate", "Update", "Control", "Retrieve", "Execute", "Request"],
     "Credit Management": ["Initiate", "Update", "Control", "Retrieve", "Evaluate"],
@@ -134,7 +139,6 @@ def render_stub_module(
     fleet_id: Optional[str] = None,
     rack_id: Optional[str] = None,
 ) -> str:
-    """Deterministic offline stub (preview / no-LLM path)."""
     ops = operations_for(domain)
     cls = _class_name(domain)
     mod = _slug(domain)
