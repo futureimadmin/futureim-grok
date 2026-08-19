@@ -1,30 +1,63 @@
 fleets:
 - fleet_id: trade_finance
   name: Trade Finance
-  description: 'Documentary trade — letters of credit, guarantees, and trade finance products on BIAN Trade Banking domains.'
-  icon: "🚢"
+  description: 'Documentary trade — letters of credit, guarantees, and trade finance
+    products on BIAN Trade Banking domains.
+
+    '
+  icon: 🌐
   status: active
   platform: bian
-  bian_version: "12"
+  bian_version: '12'
   is_reference: false
   reference_fleet_id: bian
   default_top_k: 8
-  system_prompt_hint: Use BIAN trade finance domain boundaries; bank product terms in product sources.
   documents_prefix: fleets/trade_finance/
+  system_prompt_hint: 'You support trade finance operations. Prefer BIAN Letter of
+    Credit, Bank Guarantee, and Trade Finance service domain names.
+
+    '
   tiers:
   - tier_id: documentary
-    name: Documentary
-    description: LC and guarantee lifecycle
-    rack_ids: [letter_of_credit, guarantees]
-    bian_service_domains: [Letter Of Credit, Bank Guarantee, Trade Finance, Payment Execution]
+    name: Documentary Trade
+    rack_ids:
+    - letters_of_credit
+    - guarantees
+    bian_service_domains:
+    - Letter of Credit
+    - Bank Guarantee
+    - Trade Finance
+  - tier_id: working_capital
+    name: Trade Working Capital
+    rack_ids:
+    - trade_loans
+    bian_service_domains:
+    - Trade Finance
+    - Corporate Loan
+    - Credit Facility
   racks:
-  - rack_id: letter_of_credit
+  - rack_id: letters_of_credit
     name: Letters of Credit
-    description: LC issuance through settlement
-    bian_service_domains: [Letter Of Credit, Trade Finance, Payment Execution]
-    tier_ids: [documentary]
+    description: Issuance, advising, amendment, presentation, settlement.
+    bian_service_domains:
+    - Letter of Credit
+    - Trade Finance
+    tier_ids:
+    - documentary
   - rack_id: guarantees
     name: Bank Guarantees
-    description: Guarantee products
-    bian_service_domains: [Bank Guarantee, Trade Finance]
-    tier_ids: [documentary]
+    description: Bid bonds, performance guarantees, claims.
+    bian_service_domains:
+    - Bank Guarantee
+    - Trade Finance
+    tier_ids:
+    - documentary
+  - rack_id: trade_loans
+    name: Trade Loans
+    description: Import/export financing, receivables, packing credits.
+    bian_service_domains:
+    - Trade Finance
+    - Corporate Loan
+    - Credit Facility
+    tier_ids:
+    - working_capital
