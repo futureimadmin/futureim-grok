@@ -191,13 +191,13 @@ def render_stub_module(
         for op in ops
     )
     return (
-        f'"""BIAN Service Domain: {domain}\n'
+        f'\"\"\"BIAN Service Domain: {domain}\n'
         f"Scope: {scope}\n"
-        f'Structural stub — do not fork BIAN semantics without explicit extension markers."""\n\n'
+        f'Structural stub — do not fork BIAN semantics without explicit extension markers.\"\"\"\n\n'
         f"from __future__ import annotations\nfrom dataclasses import dataclass\n\n"
         f"{dataclasses}\n\n"
         f"class {cls}Service:\n"
-        f'    """BIAN domain service: {domain}."""\n\n'
+        f'    \"\"\"BIAN domain service: {domain}.\"\"\"\n\n'
         f"{methods}"
     )
 
