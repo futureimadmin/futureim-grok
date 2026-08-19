@@ -7,11 +7,11 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
+from typing import List
 
 
 @dataclass
 class EmbeddingConfig:
-    # GCP Vertex default; diagram shows text-embedding-3-large/1536 for OpenAI-style stacks
     model: str = os.getenv("EMBEDDING_MODEL", "text-embedding-004")
     dimensions: int = int(os.getenv("EMBEDDING_DIMS", "768"))
     batch_size: int = int(os.getenv("EMBEDDING_BATCH_SIZE", "32"))
@@ -19,8 +19,7 @@ class EmbeddingConfig:
 
 @dataclass
 class ChunkConfig:
-    strategy: str = os.getenv("CHUNK_STRATEGY", "semantic")  # fixed | sentence | semantic
-    # Architecture diagram: size=256 tok, overlap=32
+    strategy: str = os.getenv("CHUNK_STRATEGY", "semantic")
     chunk_size: int = int(os.getenv("CHUNK_SIZE", "256"))
     overlap: int = int(os.getenv("CHUNK_OVERLAP", "32"))
     min_chunk_size: int = 50
@@ -38,7 +37,6 @@ class RetrievalConfig:
 @dataclass
 class CacheConfig:
     enabled: bool = os.getenv("CACHE_ENABLED", "true").lower() == "true"
-    # Architecture diagram: similarity > 0.92
     similarity_threshold: float = float(os.getenv("CACHE_SIM_THRESHOLD", "0.92"))
     ttl_seconds: int = int(os.getenv("CACHE_TTL", "86400"))
     redis_host: str = os.getenv("REDIS_HOST", "localhost")
