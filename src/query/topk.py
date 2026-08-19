@@ -1,12 +1,5 @@
 """
 Tier 6 — Top-K Selector with token budget.
-
-Architecture diagram:
-  Top-K Selector  ·  token budget → pick top 6–12 chunks
-
-After RRF + cross-encoder rerank, select the highest-scoring chunks
-that fit under a configurable context token budget so the prompt
-stays within the LLM window.
 """
 
 from __future__ import annotations
@@ -65,10 +58,11 @@ class TopKSelector:
                 break
 
         logger.info(
-            "TopK selected %d/%d chunks (~%d tokens, budget=%d)",
-            len(selected),
+            "TopKSelector: in=%d out=%d tokens≈%d budget=%d target_k=%d",
             len(chunks),
+            len(selected),
             used,
             budget,
+            target_k,
         )
         return selected

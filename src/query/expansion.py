@@ -1,9 +1,5 @@
 """
 Tier 4 — Query Expansion + HyDE
-
-Bridges vocabulary gap before retrieval runs.
-  - QueryExpander: synonyms / multi-query variants
-  - HyDE: write a hypothetical answer document, embed it, use as dense query
 """
 
 from __future__ import annotations
