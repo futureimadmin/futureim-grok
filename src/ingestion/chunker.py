@@ -1,5 +1,6 @@
 """
-Semantic chunker with fleet/rack metadata support.
+Semantic chunker implementing fixed-size, sentence-aware, and semantic strategies.
+Every chunk carries full metadata for filtering and citation.
 """
 
 from __future__ import annotations
@@ -37,9 +38,11 @@ class Chunker:
         parts = re.split(r"(?=\n#{1,6}\s)", text)
         if len(parts) == 1:
             parts = re.split(r"\n\s*\n", text)
+
         chunks: List[str] = []
         current: List[str] = []
         current_tokens = 0
+
         for part in parts:
             part = part.strip()
             if not part:
@@ -57,6 +60,7 @@ class Chunker:
             else:
                 current.append(part)
                 current_tokens += t
+
         if current:
             chunks.append("\n\n".join(current))
         return [c for c in chunks if self._count_tokens(c) >= self.cfg.min_chunk_size]
@@ -76,6 +80,7 @@ class Chunker:
             size = self.cfg.chunk_size
             step = max(1, size - self.cfg.overlap)
             return [" ".join(words[i : i + size]) for i in range(0, len(words), step)]
+
         tokens = self.encoder.encode(text)
         size = self.cfg.chunk_size
         step = max(1, size - self.cfg.overlap)
@@ -97,6 +102,10 @@ class Chunker:
         tenant_id: str = "default",
         fleet_id: Optional[str] = None,
         rack_id: Optional[str] = None,
+        tier_id: Optional[str] = None,
+        bian_service_domain: Optional[str] = None,
+        bian_version: Optional[str] = None,
+        is_bian_reference: bool = False,
         access_level: AccessLevel = AccessLevel.PUBLIC,
         language: str = "en",
         section_heading: Optional[str] = None,
@@ -120,6 +129,10 @@ class Chunker:
                 tenant_id=tenant_id,
                 fleet_id=fleet_id,
                 rack_id=rack_id,
+                tier_id=tier_id,
+                bian_service_domain=bian_service_domain,
+                bian_version=bian_version,
+                is_bian_reference=is_bian_reference,
                 access_level=access_level,
             )
             results.append(

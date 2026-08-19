@@ -2,41 +2,14 @@
 """
 Upload all BIAN knowledge documents to the RAG documents Cloud Storage bucket.
 
-Object layout (matches apps/ingestion/_infer_metadata path conventions):
-
+Object layout:
   gs://{DOCUMENTS_BUCKET}/fleets/bian/{rack_id}/service_domain.md
 
-When Eventarc is wired (Terraform modules/eventarc), each object finalize
-triggers Cloud Run ingestion:
-
-  GCS finalize → Eventarc → rag-ingestion → chunk → embed → vector + doc store
-
-Prerequisites
--------------
-- GCP project with documents bucket provisioned
-  (Terraform: ${project_id}-rag-documents)
-- ADC credentials: gcloud auth application-default login
-- Env (optional):
-    DOCUMENTS_BUCKET=my-project-rag-documents
-    GCP_PROJECT / GOOGLE_CLOUD_PROJECT
-
-Usage
------
-  # Dry-run (list only)
+Usage:
   python scripts/upload_bian_to_gcs.py --dry-run
-
-  # Upload
   set DOCUMENTS_BUCKET=my-project-rag-documents
   python scripts/upload_bian_to_gcs.py
-
-  # Explicit bucket / prefix
-  python scripts/upload_bian_to_gcs.py --bucket my-project-rag-documents
-
-  # Also upload knowledge/bian mirrors
-  python scripts/upload_bian_to_gcs.py --include-knowledge
-
-  # Force re-upload even if generation matches size
-  python scripts/upload_bian_to_gcs.py --force
+  python scripts/upload_bian_to_gcs.py --include-knowledge --force
 """
 
 from __future__ import annotations
@@ -133,8 +106,7 @@ def upload(
     bucket = client.bucket(bucket_name)
     if not bucket.exists():
         logger.error(
-            "Bucket gs://%s does not exist. Provision via Terraform "
-            "(module.services → ${project_id}-rag-documents) first.",
+            "Bucket gs://%s does not exist. Provision via Terraform first.",
             bucket_name,
         )
         raise SystemExit(3)
@@ -168,10 +140,6 @@ def upload(
         uploaded += 1
 
     logger.info("Done. uploaded=%d skipped=%d bucket=gs://%s", uploaded, skipped, bucket_name)
-    logger.info(
-        "If Eventarc → rag-ingestion is deployed, each new/updated object "
-        "will be chunked, embedded, and dual-written to Vector + Doc store."
-    )
     return uploaded
 
 
@@ -180,7 +148,7 @@ def main(argv: List[str] | None = None) -> int:
     parser.add_argument(
         "--bucket",
         default=os.getenv("DOCUMENTS_BUCKET", ""),
-        help="GCS documents bucket (default: $DOCUMENTS_BUCKET or ${PROJECT}-rag-documents)",
+        help="GCS documents bucket",
     )
     parser.add_argument(
         "--include-knowledge",
@@ -203,10 +171,7 @@ def main(argv: List[str] | None = None) -> int:
             bucket = f"{project}-rag-documents"
             logger.info("Using inferred bucket name: %s", bucket)
         else:
-            logger.error(
-                "Set --bucket or DOCUMENTS_BUCKET (or GCP_PROJECT to infer "
-                "{project}-rag-documents)"
-            )
+            logger.error("Set --bucket or DOCUMENTS_BUCKET (or GCP_PROJECT)")
             return 1
 
     pairs = _discover_docs(include_knowledge=args.include_knowledge)
