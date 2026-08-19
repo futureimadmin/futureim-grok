@@ -1,4 +1,6 @@
-from .agent import AgenticRAG
-from .metrics import AccuracyMetrics, evaluate_accuracy
+"""Agentic RAG package — planner, tools, metrics, memory."""
 
-__all__ = ["AgenticRAG", "AccuracyMetrics", "evaluate_accuracy"]
+from src.agentic.agent import AgenticRAG
+from src.agentic.metrics import AccuracyMetrics
+
+__all__ = ["AgenticRAG", "AccuracyMetrics"]
