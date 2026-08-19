@@ -16,6 +16,7 @@
           <div class="brand-sub">BIAN · Domain knowledge console</div>
         </div>
       </div>
+
       <div class="sidebar-section">
         <div class="section-label">Fleets</div>
         <div id="fleet-list" class="fleet-list">
@@ -30,15 +31,18 @@
           {% endfor %}
         </div>
       </div>
+
       <div class="sidebar-section" id="rack-section" hidden>
         <div class="section-label">Racks <span id="rack-fleet-label" class="muted"></span></div>
         <div id="rack-list" class="rack-list"></div>
         <button class="rack-item rack-all" data-rack="" type="button">All racks in fleet</button>
       </div>
+
       <div class="sidebar-section" id="tier-section" hidden>
         <div class="section-label">Tiers</div>
         <div id="tier-list" class="tier-list"></div>
       </div>
+
       <div class="sidebar-footer">
         <div class="pill" id="scope-pill">No fleet selected</div>
         <div class="sidebar-links">
@@ -47,6 +51,7 @@
         </div>
       </div>
     </aside>
+
     <main class="main">
       <header class="topbar">
         <div>
@@ -58,6 +63,7 @@
           <span class="badge" id="cache-badge" hidden>Cache hit</span>
         </div>
       </header>
+
       <section class="bian-panel" id="bian-panel" hidden>
         <div class="bian-header">
           <div>
@@ -69,6 +75,7 @@
         <div class="bian-chips" id="bian-chips"></div>
         <p class="bian-hint muted" id="bian-hint"></p>
       </section>
+
       <section class="query-panel">
         <form id="query-form">
           <div class="mode-bar">
@@ -88,15 +95,23 @@
             </select>
           </div>
           <label class="sr-only" for="query-input">Ask a question</label>
-          <textarea id="query-input" rows="3" placeholder="Ask anything about the selected fleet or rack… For codegen try: generate Loan service stubs" required></textarea>
+          <textarea
+            id="query-input"
+            rows="3"
+            placeholder="Ask anything about the selected fleet or rack… For codegen try: generate Loan service stubs"
+            required
+          ></textarea>
           <div class="query-actions">
             <div class="hints">
               <span class="hint-chip" id="hint-chip">Tip: pick a rack for sharper answers</span>
             </div>
-            <button type="submit" id="ask-btn" class="btn primary" disabled>Ask</button>
+            <button type="submit" id="ask-btn" class="btn primary" disabled>
+              Ask
+            </button>
           </div>
         </form>
       </section>
+
       <section class="answer-panel" id="answer-panel" hidden>
         <div class="answer-meta">
           <span id="meta-latency" class="meta-item"></span>
@@ -113,20 +128,26 @@
         </div>
         <div id="citations" class="citations"></div>
       </section>
+
       <section class="empty-state" id="empty-state">
         <div class="empty-card">
           <div class="empty-icon">🏦</div>
           <h2>RAG Fleet · BIAN Console</h2>
-          <p>Choose a <strong>Fleet</strong>, optionally a <strong>Rack</strong> and <strong>Tier</strong>. Banking fleets show active BIAN service domains.</p>
+          <p>
+            Choose a <strong>Fleet</strong> (domain), optionally a <strong>Rack</strong> (sub-domain)
+            and <strong>Tier</strong>. Banking fleets show <strong>active BIAN service domains</strong>
+            and dual-pull reference knowledge.
+          </p>
           <ul class="empty-list">
-            <li><strong>Ask</strong> — grounded Q&amp;A</li>
-            <li><strong>Agentic RAG</strong> — plan → dual-retrieve → RAGAS</li>
-            <li><strong>Codegen</strong> — BIAN service stubs</li>
+            <li><strong>Ask</strong> — grounded Q&amp;A in fleet/rack scope</li>
+            <li><strong>Agentic RAG</strong> — plan → dual-retrieve → generate → RAGAS retry</li>
+            <li><strong>Codegen</strong> — BIAN-aligned service stubs for active domains only</li>
           </ul>
         </div>
       </section>
     </main>
   </div>
+
   <script src="/static/console.js"></script>
 </body>
 </html>
