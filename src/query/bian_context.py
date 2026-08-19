@@ -11,7 +11,7 @@ Policy:
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from src.fleet.models import Fleet, Rack
 from src.fleet.registry import get_fleet, get_registry

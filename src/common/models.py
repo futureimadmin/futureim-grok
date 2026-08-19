@@ -1,6 +1,5 @@
 """
 Shared data models that flow through the RAG pipeline.
-Matches the object shapes described in the architecture document.
 """
 
 from __future__ import annotations
@@ -56,7 +55,7 @@ class RetrievedChunk(BaseModel):
     chunk_id: str
     text: str
     score: float
-    source: str  # "dense" | "bm25" | "hybrid" | "rerank"
+    source: str
     metadata: ChunkMetadata
 
 
@@ -72,10 +71,10 @@ class QueryType(str, Enum):
 class ExecutionPlan(BaseModel):
     query_type: QueryType
     k: int
-    retrieval_strategy: str  # "dense" | "hybrid" | "hyde"
+    retrieval_strategy: str
     use_reranker: bool = True
     max_tokens: int = 512
-    model_tier: str = "flash"  # flash | pro
+    model_tier: str = "flash"
     tool_calls: List[str] = Field(default_factory=list)
     fleet_id: Optional[str] = None
     rack_id: Optional[str] = None
