@@ -1,6 +1,7 @@
 """
-Hybrid retrieval: dense ANN + BM25 + RRF fusion (Tiers 5–6).
-Hydrates text from Doc Store after vector search returns chunk_ids.
+Hybrid retrieval: dense ANN (Vertex AI Vector Search) + BM25 + RRF fusion.
+
+Implements sections 5 and 6.1 of the architecture guide.
 """
 
 from __future__ import annotations
@@ -14,8 +15,8 @@ from rank_bm25 import BM25Okapi
 from src.common.config import RAGConfig, get_config
 from src.common.models import ChunkMetadata, RetrievedChunk
 from src.ingestion.embedder import Embedder
-from src.query.doc_store import DocStore
 from src.query.vector_store import VectorStore
+from src.query.doc_store import DocStore
 
 logger = logging.getLogger(__name__)
 
@@ -82,21 +83,15 @@ class HybridRetriever:
             if filters:
                 doc = self._doc_store.get(cid, {})
                 meta = doc.get("metadata") or {}
-                if filters.get("fleet_id") and meta.get("fleet_id") not in (None, filters["fleet_id"]):
-                    continue
-                if filters.get("rack_id") and meta.get("rack_id") not in (None, filters["rack_id"]):
-                    continue
-                if filters.get("tenant_id") and meta.get("tenant_id") not in (None, filters["tenant_id"]):
-                    continue
-                if filters.get("bian_service_domain") and meta.get("bian_service_domain") not in (
-                    None,
-                    filters["bian_service_domain"],
+                skip = False
+                for key in (
+                    "fleet_id", "rack_id", "tenant_id", "access_level",
+                    "product", "doc_type", "namespace",
                 ):
-                    continue
-                if filters.get("is_bian_reference") is not None and meta.get("is_bian_reference") not in (
-                    None,
-                    filters["is_bian_reference"],
-                ):
+                    if filters.get(key) and meta.get(key) not in (None, filters[key]):
+                        skip = True
+                        break
+                if skip:
                     continue
             out.append((cid, float(s)))
             if len(out) >= top_k:
@@ -117,11 +112,11 @@ class HybridRetriever:
 
         qvec = dense_vector_override or self.embedder.embed_query(query)
         dense_hits = self.dense_search(qvec, top_k=top_k_ann, filters=filters)
-
         variants = query_variants or [query]
+        bm25_lists = [self.bm25_search(v, top_k=top_k_ann, filters=filters) for v in variants]
         bm25_best: Dict[str, float] = {}
-        for v in variants:
-            for cid, sc in self.bm25_search(v, top_k=top_k_ann, filters=filters):
+        for hits in bm25_lists:
+            for cid, sc in hits:
                 bm25_best[cid] = max(sc, bm25_best.get(cid, 0.0))
         bm25_hits = sorted(bm25_best.items(), key=lambda x: x[1], reverse=True)[:top_k_ann]
 
@@ -133,7 +128,8 @@ class HybridRetriever:
         for cid, score in fused[:top_k_final]:
             doc = self._doc_store.get(cid) or self.doc_store.get(cid) or {}
             meta_raw = doc.get("metadata", {}) if isinstance(doc, dict) else {}
-            text = doc.get("text", "") if isinstance(doc, dict) else ""
+            if not isinstance(doc, dict):
+                doc = {}
             try:
                 meta = ChunkMetadata(**meta_raw) if meta_raw else ChunkMetadata(source_path="unknown")
             except Exception:
@@ -141,7 +137,7 @@ class HybridRetriever:
             results.append(
                 RetrievedChunk(
                     chunk_id=cid,
-                    text=text,
+                    text=doc.get("text", ""),
                     score=score,
                     source="hybrid",
                     metadata=meta,
@@ -165,13 +161,7 @@ class HybridRetriever:
         dense_vector_override: Optional[List[float]] = None,
         bian_share: float = 0.35,
     ) -> List[RetrievedChunk]:
-        """
-        Dual-pull: product fleet content + BIAN reference domains, then merge by score.
-
-        bian_share: fraction of final slots reserved preferentially for BIAN hits
-        (remainder filled by best overall). Guarantees platform structure in context
-        without starving product policy docs.
-        """
+        """Dual-pull: product fleet + BIAN reference domains, merge by score."""
         top_k_final = top_k_final or self.cfg.retrieval.top_k_prompt
         product = self.retrieve(
             query,
@@ -211,10 +201,6 @@ class HybridRetriever:
         out = (bian_picked + rest)[:top_k_final]
         logger.info(
             "Dual retrieve: product=%d bian=%d merged=%d returned=%d (bian_slots=%d)",
-            len(product),
-            len(bian_chunks),
-            len(merged),
-            len(out),
-            n_bian,
+            len(product), len(bian_chunks), len(merged), len(out), n_bian,
         )
         return out
