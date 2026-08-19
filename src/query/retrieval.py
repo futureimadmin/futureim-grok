@@ -47,7 +47,10 @@ class HybridRetriever:
         for r in records:
             cid = r["id"]
             text = r.get("text", "")
-            self._doc_store[cid] = {"text": text, "metadata": r.get("metadata", {})}
+            self._doc_store[cid] = {
+                "text": text,
+                "metadata": r.get("metadata", {}),
+            }
             if cid not in self._bm25_ids:
                 self._bm25_ids.append(cid)
                 self._bm25_texts.append(text)
@@ -75,7 +78,11 @@ class HybridRetriever:
             return []
         tokens = query.lower().split()
         scores = self._bm25.get_scores(tokens)
-        ranked = sorted(zip(self._bm25_ids, scores), key=lambda x: x[1], reverse=True)
+        ranked = sorted(
+            zip(self._bm25_ids, scores),
+            key=lambda x: x[1],
+            reverse=True,
+        )
         out: List[Tuple[str, float]] = []
         for cid, s in ranked:
             if s <= 0:
@@ -85,8 +92,13 @@ class HybridRetriever:
                 meta = doc.get("metadata") or {}
                 skip = False
                 for key in (
-                    "fleet_id", "rack_id", "tenant_id", "access_level",
-                    "product", "doc_type", "namespace",
+                    "fleet_id",
+                    "rack_id",
+                    "tenant_id",
+                    "access_level",
+                    "product",
+                    "doc_type",
+                    "namespace",
                 ):
                     if filters.get(key) and meta.get(key) not in (None, filters[key]):
                         skip = True
@@ -111,6 +123,7 @@ class HybridRetriever:
         top_k_final = top_k_final or self.cfg.retrieval.top_k_prompt
 
         qvec = dense_vector_override or self.embedder.embed_query(query)
+
         dense_hits = self.dense_search(qvec, top_k=top_k_ann, filters=filters)
         variants = query_variants or [query]
         bm25_lists = [self.bm25_search(v, top_k=top_k_ann, filters=filters) for v in variants]
@@ -122,7 +135,11 @@ class HybridRetriever:
 
         dense_ids = [cid for cid, _ in dense_hits]
         bm25_ids = [cid for cid, _ in bm25_hits]
-        fused = reciprocal_rank_fusion([dense_ids, bm25_ids], k=self.cfg.retrieval.rrf_k)[:top_k_ann]
+
+        fused = reciprocal_rank_fusion(
+            [dense_ids, bm25_ids],
+            k=self.cfg.retrieval.rrf_k,
+        )[: top_k_ann]
 
         results: List[RetrievedChunk] = []
         for cid, score in fused[:top_k_final]:
@@ -145,7 +162,10 @@ class HybridRetriever:
             )
         logger.info(
             "Hybrid retrieve: dense=%d bm25=%d fused=%d returned=%d",
-            len(dense_ids), len(bm25_ids), len(fused), len(results),
+            len(dense_ids),
+            len(bm25_ids),
+            len(fused),
+            len(results),
         )
         return results
 
@@ -161,7 +181,6 @@ class HybridRetriever:
         dense_vector_override: Optional[List[float]] = None,
         bian_share: float = 0.35,
     ) -> List[RetrievedChunk]:
-        """Dual-pull: product fleet + BIAN reference domains, merge by score."""
         top_k_final = top_k_final or self.cfg.retrieval.top_k_prompt
         product = self.retrieve(
             query,
@@ -198,9 +217,14 @@ class HybridRetriever:
         bian_ids = {c.chunk_id for c in bian_chunks}
         bian_picked = [c for c in merged if c.chunk_id in bian_ids][:n_bian]
         rest = [c for c in merged if c.chunk_id not in {x.chunk_id for x in bian_picked}]
-        out = (bian_picked + rest)[:top_k_final]
+        out = bian_picked + rest
+        out = out[:top_k_final]
         logger.info(
             "Dual retrieve: product=%d bian=%d merged=%d returned=%d (bian_slots=%d)",
-            len(product), len(bian_chunks), len(merged), len(out), n_bian,
+            len(product),
+            len(bian_chunks),
+            len(merged),
+            len(out),
+            n_bian,
         )
         return out
