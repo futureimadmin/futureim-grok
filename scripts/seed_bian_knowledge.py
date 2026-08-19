@@ -6,9 +6,6 @@ Usage (from repo root):
   set PYTHONPATH=.
   python scripts/seed_bian_knowledge.py
 
-This walks fleets/bian/**/*.md, chunks with fleet_id=bian metadata, and dual-writes
-to DocStore. When GCP/Vertex is configured, embeddings are upserted as well.
-
 Volume is not capped — add as many service domain files as needed under fleets/bian/.
 """
 
@@ -49,7 +46,13 @@ def main() -> int:
         rack_id = parts[0] if parts else "general"
         if rack_id in {"_scenarios", "_patterns", "_standards", "_bom", "_api"}:
             domain = path.stem.replace("_", " ").title()
-            section = {"_scenarios": "scenario", "_patterns": "pattern", "_standards": "standard", "_bom": "bom", "_api": "api"}.get(rack_id, path.stem)
+            section = {
+                "_scenarios": "scenario",
+                "_patterns": "pattern",
+                "_standards": "standard",
+                "_bom": "bom",
+                "_api": "api",
+            }.get(rack_id, path.stem)
         else:
             domain = rack_id.replace("_", " ").title()
             section = path.stem
