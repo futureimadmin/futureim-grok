@@ -2,11 +2,11 @@
 Accuracy Measurement Layer (Agentic RAG architecture).
 
 Implements the four RAGAS-style metrics + composite score:
-  - Faithfulness Score   — % claims grounded in retrieved context
-  - Answer Relevance     — does answer address the question?
-  - Context Precision    — are retrieved chunks actually useful?
-  - Context Recall       — did retrieval find relevant information?
-  - RAGAS Score          — composite 0.0–1.0 (target > 0.80)
+  - Faithfulness Score
+  - Answer Relevance
+  - Context Precision
+  - Context Recall
+  - RAGAS Score (target > 0.80)
 """
 
 from __future__ import annotations
@@ -157,7 +157,11 @@ def evaluate_accuracy(
     )
     logger.info(
         "RAGAS=%.3f faith=%.3f rel=%.3f prec=%.3f recall=%.3f passed=%s",
-        metrics.ragas_score, metrics.faithfulness, metrics.answer_relevance,
-        metrics.context_precision, metrics.context_recall, metrics.passed,
+        metrics.ragas_score,
+        metrics.faithfulness,
+        metrics.answer_relevance,
+        metrics.context_precision,
+        metrics.context_recall,
+        metrics.passed,
     )
     return metrics

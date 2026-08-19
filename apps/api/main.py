@@ -1,8 +1,6 @@
 """
-Query-path FastAPI service (private-serving plane).
-
-Tier 3 entry: optional API-key auth, rate-limit, then orchestrator.
-Supports fleet_id / rack_id scoping for RAG Fleet isolation.
+Cloud Run entry-point for the RAG query API.
+Exposes a simple FastAPI surface that the orchestrator drives.
 """
 
 from __future__ import annotations

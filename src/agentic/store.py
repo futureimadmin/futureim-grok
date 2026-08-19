@@ -1,11 +1,5 @@
 """
 In-memory accuracy telemetry store for the Dashboard.
-
-Each agentic query appends a run record. The dashboard aggregates:
-  - overall RAGAS / faithfulness / relevance / precision / recall
-  - pass rate vs threshold
-  - latency & attempt histograms
-  - recent runs
 """
 
 from __future__ import annotations
@@ -106,5 +100,4 @@ class AccuracyStore:
             self._runs.clear()
 
 
-# Process-wide singleton for the dashboard
 accuracy_store = AccuracyStore()
