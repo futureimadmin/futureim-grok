@@ -1,9 +1,13 @@
 # BIAN Service Domain: Limit And Exposure Management
 
 ## Purpose
-Enterprise credit limits and exposure aggregation across products, obligors, and groups.
+Enterprise credit limits and exposure aggregation across products, obligors,
+and groups — concentration and availability checks.
 
-## Operations
+## Control record
+Limit Structure / Exposure Position
+
+## Typical service operations
 Initiate · Update · Control · Retrieve · Evaluate
 
 ## Key business objects

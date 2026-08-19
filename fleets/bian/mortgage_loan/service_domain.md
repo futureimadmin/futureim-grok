@@ -1,14 +1,19 @@
 # BIAN Service Domain: Mortgage Loan
 
-**Category:** Lending
-**CR:** MortgageLoanFacility
-**API:** MortgageLoan.yaml
+**BIAN version:** 12 (reference)
 
 ## Purpose
-Lifecycle of mortgage facilities — initiation through servicing and closure.
+Mortgage-secured loan facility specialisation of Loan — property collateral,
+registration, LTV, and mortgage-specific lifecycle events.
 
-## Typical BQs
-Disbursement · Repayment · Interest · Fees · Collateral · Lien · Restructuring · Billing
+## Control record
+Mortgage Loan Facility
 
 ## Operations
-Initiate · Update · Control · Execute · Request · Retrieve · Exchange
+Initiate · Update · Control · Execute · Retrieve
+
+## Related domains
+Loan · Credit Management · Collateral Asset Administration · Customer Offer · Payment Execution
+
+## Coding guidance
+Pair with Credit Management and Collateral on originations tier; never invent rates from BIAN reference alone.
