@@ -1,0 +1,245 @@
+# Additional BIAN product fleets — auto-merged into registry.yaml at load time
+fleets:
+  - fleet_id: corporate_lending
+    name: Corporate Lending
+    description: >
+      Commercial and corporate credit — facilities, syndicated loans, project
+      finance, and limit/exposure management on the BIAN base platform.
+    icon: "🏢"
+    status: active
+    platform: bian
+    bian_version: "12"
+    is_reference: false
+    reference_fleet_id: bian
+    default_top_k: 10
+    documents_prefix: fleets/corporate_lending/
+    system_prompt_hint: >
+      You support corporate credit teams. Prefer BIAN Corporate Loan, Syndicated Loan,
+      Credit Facility, Limit And Exposure Management, and Project Finance semantics.
+    tiers:
+      - tier_id: origination
+        name: Origination
+        description: Facility structuring and credit approval.
+        rack_ids: [corporate_loans, facilities, project_finance]
+        bian_service_domains:
+          - Corporate Loan
+          - Credit Facility
+          - Credit Management
+          - Project Finance
+          - Customer Offer
+      - tier_id: syndication
+        name: Syndication
+        description: Multi-bank deals and participation.
+        rack_ids: [syndicated]
+        bian_service_domains:
+          - Syndicated Loan
+          - Credit Facility
+          - Limit And Exposure Management
+      - tier_id: portfolio
+        name: Portfolio & Exposure
+        description: Limits, exposure, and monitoring.
+        rack_ids: [exposure]
+        bian_service_domains:
+          - Limit And Exposure Management
+          - Credit Management
+          - Corporate Loan
+    racks:
+      - rack_id: corporate_loans
+        name: Corporate Loans
+        description: Bilateral corporate facilities, covenants, drawdowns.
+        bian_service_domains: [Corporate Loan, Credit Facility, Credit Management, Customer Offer]
+        tier_ids: [origination]
+      - rack_id: facilities
+        name: Credit Facilities
+        description: Revolving facilities, commitment tracking, utilization.
+        bian_service_domains: [Credit Facility, Limit And Exposure Management, Corporate Loan]
+        tier_ids: [origination]
+      - rack_id: syndicated
+        name: Syndicated Loans
+        description: Syndicate structure, agent roles, participation transfers.
+        bian_service_domains: [Syndicated Loan, Credit Facility, Limit And Exposure Management]
+        tier_ids: [syndication]
+      - rack_id: project_finance
+        name: Project Finance
+        description: SPV structures, cash-flow lending, construction risk.
+        bian_service_domains: [Project Finance, Corporate Loan, Credit Facility]
+        tier_ids: [origination]
+      - rack_id: exposure
+        name: Limits & Exposure
+        description: Group limits, concentration, obligor exposure.
+        bian_service_domains: [Limit And Exposure Management, Credit Management]
+        tier_ids: [portfolio]
+
+  # ── Investments / Wealth (BIAN) ───────────────────────────────────────────
+  - fleet_id: investments
+    name: Investments & Wealth
+    description: >
+      Investment accounts, portfolio planning/analysis/management, and trading
+      workbench capabilities aligned to BIAN Investment Management domains.
+    icon: "📊"
+    status: active
+    platform: bian
+    bian_version: "12"
+    is_reference: false
+    reference_fleet_id: bian
+    default_top_k: 10
+    documents_prefix: fleets/investments/
+    system_prompt_hint: >
+      You support wealth and investment operations. Prefer BIAN Investment Portfolio
+      Planning, Analysis, Management, Investment Account, and eTrading Workbench names.
+    tiers:
+      - tier_id: advisory
+        name: Advisory & Planning
+        description: Goal-based planning and suitability.
+        rack_ids: [portfolio_planning]
+        bian_service_domains:
+          - Investment Portfolio Planning
+          - Investment Portfolio Analysis
+          - Customer Offer
+          - Party Reference Data Management
+      - tier_id: portfolio_mgmt
+        name: Portfolio Management
+        description: Discretionary and advisory portfolio ops.
+        rack_ids: [portfolio_management, investment_accounts]
+        bian_service_domains:
+          - Investment Portfolio Management
+          - Investment Account
+          - Investment Portfolio Analysis
+      - tier_id: markets
+        name: Markets & Execution
+        description: Order routing and trading workbench.
+        rack_ids: [trading]
+        bian_service_domains:
+          - eTrading Workbench
+          - Investment Account
+    racks:
+      - rack_id: portfolio_planning
+        name: Portfolio Planning
+        description: IPS, risk profiling, asset allocation models.
+        bian_service_domains: [Investment Portfolio Planning, Investment Portfolio Analysis, Customer Offer]
+        tier_ids: [advisory]
+      - rack_id: portfolio_management
+        name: Portfolio Management
+        description: Rebalancing, corporate actions, performance.
+        bian_service_domains: [Investment Portfolio Management, Investment Portfolio Analysis]
+        tier_ids: [portfolio_mgmt]
+      - rack_id: investment_accounts
+        name: Investment Accounts
+        description: Custody, cash sweeps, account structures.
+        bian_service_domains: [Investment Account, Party Reference Data Management]
+        tier_ids: [portfolio_mgmt]
+      - rack_id: trading
+        name: Trading Workbench
+        description: Order capture, routing, best execution.
+        bian_service_domains: [eTrading Workbench, Investment Account]
+        tier_ids: [markets]
+
+  # ── Core Banking (BIAN) ───────────────────────────────────────────────────
+  - fleet_id: core_banking
+    name: Core Banking
+    description: >
+      Deposit and account products — current/savings accounts, term deposits,
+      standing orders, and virtual accounts as BIAN Loans & Deposits domains.
+    icon: "🏛️"
+    status: active
+    platform: bian
+    bian_version: "12"
+    is_reference: false
+    reference_fleet_id: bian
+    default_top_k: 10
+    documents_prefix: fleets/core_banking/
+    system_prompt_hint: >
+      You support core deposit and account operations. Prefer BIAN Current Account,
+      Savings Account, Term Deposit, Standing Order, and Virtual Account semantics.
+    tiers:
+      - tier_id: accounts
+        name: Accounts
+        description: Demand deposit products.
+        rack_ids: [current_accounts, savings, virtual_accounts]
+        bian_service_domains:
+          - Current Account
+          - Corporate Current Account
+          - Savings Account
+          - Virtual Account
+      - tier_id: deposits
+        name: Time Deposits
+        description: Term and notice products.
+        rack_ids: [term_deposits]
+        bian_service_domains:
+          - Term Deposit
+      - tier_id: mandates
+        name: Mandates & Standing Orders
+        description: Recurring instructions.
+        rack_ids: [standing_orders]
+        bian_service_domains:
+          - Standing Order
+          - Current Account
+    racks:
+      - rack_id: current_accounts
+        name: Current Accounts
+        description: Retail and corporate CASA, overdrafts, statements.
+        bian_service_domains: [Current Account, Corporate Current Account, Customer Agreement]
+        tier_ids: [accounts]
+      - rack_id: savings
+        name: Savings Accounts
+        description: Interest rules, withdrawal limits, product variants.
+        bian_service_domains: [Savings Account, Customer Offer]
+        tier_ids: [accounts]
+      - rack_id: term_deposits
+        name: Term Deposits
+        description: Fixed-term deposits, renewals, early break.
+        bian_service_domains: [Term Deposit, Customer Offer]
+        tier_ids: [deposits]
+      - rack_id: virtual_accounts
+        name: Virtual Accounts
+        description: Virtual IBAN structures, concentration accounts.
+        bian_service_domains: [Virtual Account, Current Account]
+        tier_ids: [accounts]
+      - rack_id: standing_orders
+        name: Standing Orders
+        description: Recurring payments, mandates, failure handling.
+        bian_service_domains: [Standing Order, Payment Order, Current Account]
+        tier_ids: [mandates]
+
+  # ── Trade Finance (BIAN) ──────────────────────────────────────────────────
+  - fleet_id: trade_finance
+    name: Trade Finance
+    description: >
+      Documentary trade — letters of credit, guarantees, and trade finance
+      products on BIAN Trade Banking domains.
+    icon: "🌐"
+    status: active
+    platform: bian
+    bian_version: "12"
+    is_reference: false
+    reference_fleet_id: bian
+    default_top_k: 8
+    documents_prefix: fleets/trade_finance/
+    system_prompt_hint: >
+      You support trade finance operations. Prefer BIAN Letter of Credit, Bank Guarantee,
+      and Trade Finance service domain names.
+    tiers:
+      - tier_id: documentary
+        name: Documentary Trade
+        rack_ids: [letters_of_credit, guarantees]
+        bian_service_domains: [Letter of Credit, Bank Guarantee, Trade Finance]
+      - tier_id: working_capital
+        name: Trade Working Capital
+        rack_ids: [trade_loans]
+        bian_service_domains: [Trade Finance, Corporate Loan, Credit Facility]
+    racks:
+      - rack_id: letters_of_credit
+        name: Letters of Credit
+        description: Issuance, advising, amendment, presentation, settlement.
+        bian_service_domains: [Letter of Credit, Trade Finance]
+        tier_ids: [documentary]
+      - rack_id: guarantees
+        name: Bank Guarantees
+        description: Bid bonds, performance guarantees, claims.
+        bian_service_domains: [Bank Guarantee, Trade Finance]
+        tier_ids: [documentary]
+      - rack_id: trade_loans
+        name: Trade Loans
+        description: Import/export financing, receivables, packing credits.
+        bian_service_domains: [Trade Finance, Corporate Loan, Credit Facility]
+        tier_ids: [working_capital]
