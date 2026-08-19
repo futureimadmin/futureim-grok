@@ -1,11 +1,5 @@
 """
 Five-stage post-processing pipeline (section 10 of the architecture guide).
-
-1. Citation resolution
-2. Faithfulness check (lightweight heuristic; NLI can be added)
-3. Safety / PII guardrail
-4. Format normalisation
-5. (Cache write-back is performed by the orchestrator)
 """
 
 from __future__ import annotations

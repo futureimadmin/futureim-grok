@@ -4,15 +4,8 @@ Fleet / Rack / Tier domain model — 3-dimensional logical structure.
   Fleet  = logical domain          (e.g. Consumer Lending)
   Rack   = logical sub-domain      (e.g. Personal Loans)
   Tier   = logical group of sub-domains (e.g. Originations, Servicing)
-           Tiers are extended on demand; they are not physical capacity units.
 
-BIAN (Banking Industry Architecture Network) is the *base platform* for all
-banking fleets. Every banking rack declares the BIAN service domains it
-implements; the dedicated `bian` reference fleet holds canonical BIAN knowledge
-in the vector/doc store (no artificial volume ceiling — scale the index).
-
-Namespace isolation remains metadata-driven:
-  fleet_id · rack_id · tier_id · bian_service_domain · tenant_id
+BIAN is the base platform for banking fleets.
 """
 
 from __future__ import annotations
@@ -31,8 +24,6 @@ class FleetStatus(str, Enum):
 
 
 class Tier(BaseModel):
-    """Logical group of sub-domains (racks) and/or BIAN service domains."""
-
     tier_id: str = Field(..., description="Stable id, e.g. originations")
     name: str
     description: str = ""

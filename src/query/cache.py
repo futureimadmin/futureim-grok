@@ -38,6 +38,7 @@ class SemanticCache:
         if self.cfg.cache.enabled:
             try:
                 import redis
+
                 self._redis = redis.Redis(
                     host=self.cfg.cache.redis_host,
                     port=self.cfg.cache.redis_port,
@@ -46,10 +47,9 @@ class SemanticCache:
                     socket_connect_timeout=2,
                 )
                 self._redis.ping()
-                logger.info("Semantic cache connected to Redis %s:%s",
-                            self.cfg.cache.redis_host, self.cfg.cache.redis_port)
+                logger.info("Semantic cache connected to Redis %s:%s", self.cfg.cache.redis_host, self.cfg.cache.redis_port)
             except Exception as e:
-                logger.warning("Redis unavailable (%s) – cache disabled", e)
+                logger.warning("Redis unavailable (%s) – cache disabled for this process", e)
                 self._redis = None
 
     def _key(self, tenant_id: str) -> str:
@@ -85,7 +85,12 @@ class SemanticCache:
             logger.warning("Cache get failed: %s", e)
         return None
 
-    def put(self, query: str, response: RAGResponse, tenant_id: str = "default") -> None:
+    def put(
+        self,
+        query: str,
+        response: RAGResponse,
+        tenant_id: str = "default",
+    ) -> None:
         if not self._redis or response.cache_hit:
             return
         if "don't have enough information" in response.answer.lower():
