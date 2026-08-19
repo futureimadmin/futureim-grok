@@ -46,24 +46,36 @@
 
     <section class="metric-grid">
       <div class="metric-card" data-metric="faithfulness">
-        <div class="metric-head"><span class="metric-name">Faithfulness</span><span class="metric-val" id="m-faith">—</span></div>
+        <div class="metric-head">
+          <span class="metric-name">Faithfulness</span>
+          <span class="metric-val" id="m-faith">—</span>
+        </div>
         <div class="bar"><div class="bar-fill" id="bar-faith"></div></div>
-        <p class="metric-desc">% claims grounded in retrieved context</p>
+        <p class="metric-desc">% claims grounded in retrieved context (NLI proxy)</p>
       </div>
       <div class="metric-card" data-metric="answer_relevance">
-        <div class="metric-head"><span class="metric-name">Answer Relevance</span><span class="metric-val" id="m-rel">—</span></div>
+        <div class="metric-head">
+          <span class="metric-name">Answer Relevance</span>
+          <span class="metric-val" id="m-rel">—</span>
+        </div>
         <div class="bar"><div class="bar-fill" id="bar-rel"></div></div>
-        <p class="metric-desc">How well the answer addresses the question</p>
+        <p class="metric-desc">Does the answer address the question asked?</p>
       </div>
       <div class="metric-card" data-metric="context_precision">
-        <div class="metric-head"><span class="metric-name">Context Precision</span><span class="metric-val" id="m-prec">—</span></div>
+        <div class="metric-head">
+          <span class="metric-name">Context Precision</span>
+          <span class="metric-val" id="m-prec">—</span>
+        </div>
         <div class="bar"><div class="bar-fill" id="bar-prec"></div></div>
-        <p class="metric-desc">Share of retrieved context that is useful</p>
+        <p class="metric-desc">Are retrieved chunks actually useful? (signal-to-noise)</p>
       </div>
       <div class="metric-card" data-metric="context_recall">
-        <div class="metric-head"><span class="metric-name">Context Recall</span><span class="metric-val" id="m-recall">—</span></div>
+        <div class="metric-head">
+          <span class="metric-name">Context Recall</span>
+          <span class="metric-val" id="m-recall">—</span>
+        </div>
         <div class="bar"><div class="bar-fill" id="bar-recall"></div></div>
-        <p class="metric-desc">Did retrieval surface needed information?</p>
+        <p class="metric-desc">Did retrieval surface the information used in the answer?</p>
       </div>
     </section>
 
@@ -78,11 +90,16 @@
             <option value="{{ f.fleet_id }}">{{ f.icon }} {{ f.name }}</option>
             {% endfor %}
           </select>
-          <select id="eval-rack"><option value="">All racks</option></select>
+          <select id="eval-rack">
+            <option value="">All racks</option>
+          </select>
         </div>
         <textarea id="eval-query" rows="2" placeholder="Ask a question to evaluate accuracy…" required></textarea>
         <div class="eval-actions">
-          <label class="toggle"><input type="checkbox" id="eval-agentic" checked /> Agentic mode</label>
+          <label class="toggle">
+            <input type="checkbox" id="eval-agentic" checked />
+            Agentic mode (plan · retry · RAGAS)
+          </label>
           <button type="submit" class="btn primary" id="eval-btn">Evaluate</button>
         </div>
       </form>
@@ -93,22 +110,34 @@
       <div class="table-card">
         <h3>By Fleet</h3>
         <table class="data-table" id="fleet-table">
-          <thead><tr><th>Fleet</th><th>Runs</th><th>Avg RAGAS</th><th>Pass rate</th></tr></thead>
-          <tbody id="fleet-tbody"><tr><td colspan="4" class="muted">No data yet</td></tr></tbody>
+          <thead>
+            <tr><th>Fleet</th><th>Runs</th><th>Avg RAGAS</th><th>Pass rate</th></tr>
+          </thead>
+          <tbody id="fleet-tbody">
+            <tr><td colspan="4" class="muted">No data yet</td></tr>
+          </tbody>
         </table>
       </div>
       <div class="table-card wide">
         <h3>Recent Runs</h3>
         <table class="data-table" id="recent-table">
           <thead>
-            <tr><th>Time</th><th>Query</th><th>Fleet</th><th>RAGAS</th><th>Faith</th><th>Rel</th><th>Prec</th><th>Recall</th><th>Pass</th><th>ms</th><th>Tries</th></tr>
+            <tr>
+              <th>Time</th><th>Query</th><th>Fleet</th><th>RAGAS</th>
+              <th>Faith</th><th>Rel</th><th>Prec</th><th>Recall</th>
+              <th>Pass</th><th>ms</th><th>Tries</th>
+            </tr>
           </thead>
-          <tbody id="recent-tbody"><tr><td colspan="11" class="muted">Run an evaluation to populate</td></tr></tbody>
+          <tbody id="recent-tbody">
+            <tr><td colspan="11" class="muted">Run an evaluation to populate</td></tr>
+          </tbody>
         </table>
       </div>
     </section>
   </div>
-  <script>window.__FLEETS__ = {{ fleets_json | safe }};</script>
+  <script>
+    window.__FLEETS__ = {{ fleets_json | safe }};
+  </script>
   <script src="/static/dashboard.js"></script>
 </body>
 </html>
