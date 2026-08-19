@@ -1,59 +1,45 @@
 fleets:
-  - fleet_id: core_banking
-    name: Core Banking
-    description: >
-      Deposit and account products — current/savings accounts, term deposits,
-      standing orders, and virtual accounts as BIAN Loans & Deposits domains.
-    icon: "🏛️"
-    status: active
-    platform: bian
-    bian_version: "12"
-    is_reference: false
-    reference_fleet_id: bian
-    default_top_k: 10
-    documents_prefix: fleets/core_banking/
-    system_prompt_hint: >
-      You support core deposit and account operations. Prefer BIAN Current Account,
-      Savings Account, Term Deposit, Standing Order, and Virtual Account semantics.
-    tiers:
-      - tier_id: accounts
-        name: Accounts
-        description: Demand deposit products.
-        rack_ids: [current_accounts, savings, virtual_accounts]
-        bian_service_domains: [Current Account, Corporate Current Account, Savings Account, Virtual Account]
-      - tier_id: deposits
-        name: Time Deposits
-        description: Term and notice products.
-        rack_ids: [term_deposits]
-        bian_service_domains: [Term Deposit]
-      - tier_id: mandates
-        name: Mandates & Standing Orders
-        description: Recurring instructions.
-        rack_ids: [standing_orders]
-        bian_service_domains: [Standing Order, Current Account]
-    racks:
-      - rack_id: current_accounts
-        name: Current Accounts
-        description: Retail and corporate CASA, overdrafts, statements.
-        bian_service_domains: [Current Account, Corporate Current Account, Customer Agreement]
-        tier_ids: [accounts]
-      - rack_id: savings
-        name: Savings Accounts
-        description: Interest rules, withdrawal limits, product variants.
-        bian_service_domains: [Savings Account, Customer Offer]
-        tier_ids: [accounts]
-      - rack_id: term_deposits
-        name: Term Deposits
-        description: Fixed-term deposits, renewals, early break.
-        bian_service_domains: [Term Deposit, Customer Offer]
-        tier_ids: [deposits]
-      - rack_id: virtual_accounts
-        name: Virtual Accounts
-        description: Virtual IBAN structures, concentration accounts.
-        bian_service_domains: [Virtual Account, Current Account]
-        tier_ids: [accounts]
-      - rack_id: standing_orders
-        name: Standing Orders
-        description: Recurring payments, mandates, failure handling.
-        bian_service_domains: [Standing Order, Payment Order, Current Account]
-        tier_ids: [mandates]
+- fleet_id: core_banking
+  name: Core Banking
+  description: 'Demand deposits, savings, term deposits, and related payment rails on BIAN account and payment domains.'
+  icon: "🏛️"
+  status: active
+  platform: bian
+  bian_version: "12"
+  is_reference: false
+  reference_fleet_id: bian
+  default_top_k: 8
+  system_prompt_hint: Align to BIAN current/savings/term deposit and payment order/execution boundaries.
+  documents_prefix: fleets/core_banking/
+  tiers:
+  - tier_id: deposits
+    name: Deposits
+    description: Account products
+    rack_ids: [current_accounts, savings, term_deposits]
+    bian_service_domains: [Current Account, Savings Account, Term Deposit, Position Keeping]
+  - tier_id: payments
+    name: Payments
+    description: Payment initiation and execution
+    rack_ids: [payments]
+    bian_service_domains: [Payment Order, Payment Execution, Standing Order, Direct Debit Mandate]
+  racks:
+  - rack_id: current_accounts
+    name: Current Accounts
+    description: Demand deposit facilities
+    bian_service_domains: [Current Account, Position Keeping]
+    tier_ids: [deposits]
+  - rack_id: savings
+    name: Savings Accounts
+    description: Interest-bearing savings
+    bian_service_domains: [Savings Account]
+    tier_ids: [deposits]
+  - rack_id: term_deposits
+    name: Term Deposits
+    description: Fixed-term deposits
+    bian_service_domains: [Term Deposit]
+    tier_ids: [deposits]
+  - rack_id: payments
+    name: Payments
+    description: Orders and execution
+    bian_service_domains: [Payment Order, Payment Execution, Standing Order, Direct Debit Mandate]
+    tier_ids: [payments]
