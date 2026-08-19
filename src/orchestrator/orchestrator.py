@@ -1,5 +1,11 @@
 """
-Orchestrator – Tier 3 query entry with Fleet/Rack/BIAN dual-pull.
+Orchestrator – Tier 3 query entry (architecture diagram).
+
+Stages:
+  auth · rate-limit · sanitise · classify · route · fan-out
+  → Semantic Cache → (on miss) Tier 4–7 pipeline
+
+Supports Fleet + Rack scoping for multi-domain RAG fleets.
 """
 
 from __future__ import annotations
@@ -13,12 +19,12 @@ from src.common.config import RAGConfig, get_config
 from src.common.models import ExecutionPlan, QueryType, RAGResponse
 from src.fleet.registry import get_fleet
 from src.query.cache import SemanticCache
-from src.query.expansion import HyDE, QueryExpander
 from src.query.generator import Generator
 from src.query.postprocess import post_process
 from src.query.prompt import build_prompt
 from src.query.reranker import CrossEncoderReranker
 from src.query.retrieval import HybridRetriever
+from src.query.expansion import QueryExpander, HyDE
 from src.query.topk import TopKSelector
 
 logger = logging.getLogger(__name__)
@@ -31,7 +37,8 @@ class RateLimiter:
 
     def check(self, key: str) -> Tuple[bool, int]:
         now = time.time()
-        self._hits[key] = [t for t in self._hits[key] if now - t < 60.0]
+        window = self._hits[key]
+        self._hits[key] = [t for t in window if now - t < 60.0]
         if len(self._hits[key]) >= self.max_per_minute:
             return False, self.max_per_minute
         self._hits[key].append(now)
@@ -76,55 +83,35 @@ class Orchestrator:
         q = query.lower()
         if any(w in q for w in ["compare", "difference", "vs", "versus"]):
             return ExecutionPlan(
-                query_type=QueryType.COMPARATIVE,
-                k=max(12, default_k),
-                retrieval_strategy="hybrid",
-                use_reranker=True,
-                max_tokens=768,
-                model_tier="pro",
-                fleet_id=fleet_id,
-                rack_id=rack_id,
-                tenant_id=tenant_id,
-                access_level=access_level,
+                query_type=QueryType.COMPARATIVE, k=max(12, default_k),
+                retrieval_strategy="hybrid", use_reranker=True,
+                max_tokens=768, model_tier="pro",
+                fleet_id=fleet_id, rack_id=rack_id,
+                tenant_id=tenant_id, access_level=access_level,
             )
         if any(w in q for w in ["summarise", "summarize", "all", "list every"]):
             return ExecutionPlan(
-                query_type=QueryType.ANALYTICAL,
-                k=max(20, default_k),
-                retrieval_strategy="hybrid",
-                use_reranker=True,
-                max_tokens=1024,
-                model_tier="pro",
-                fleet_id=fleet_id,
-                rack_id=rack_id,
-                tenant_id=tenant_id,
-                access_level=access_level,
+                query_type=QueryType.ANALYTICAL, k=max(20, default_k),
+                retrieval_strategy="hybrid", use_reranker=True,
+                max_tokens=1024, model_tier="pro",
+                fleet_id=fleet_id, rack_id=rack_id,
+                tenant_id=tenant_id, access_level=access_level,
             )
         if any(w in q for w in ["status", "current", "live", "now"]):
             return ExecutionPlan(
-                query_type=QueryType.REAL_TIME,
-                k=0,
-                retrieval_strategy="none",
-                use_reranker=False,
-                max_tokens=256,
-                model_tier="flash",
+                query_type=QueryType.REAL_TIME, k=0,
+                retrieval_strategy="none", use_reranker=False,
+                max_tokens=256, model_tier="flash",
                 tool_calls=["status_api"],
-                fleet_id=fleet_id,
-                rack_id=rack_id,
-                tenant_id=tenant_id,
-                access_level=access_level,
+                fleet_id=fleet_id, rack_id=rack_id,
+                tenant_id=tenant_id, access_level=access_level,
             )
         return ExecutionPlan(
-            query_type=QueryType.SIMPLE_FACTUAL,
-            k=default_k,
-            retrieval_strategy="hybrid",
-            use_reranker=True,
-            max_tokens=512,
-            model_tier="flash",
-            fleet_id=fleet_id,
-            rack_id=rack_id,
-            tenant_id=tenant_id,
-            access_level=access_level,
+            query_type=QueryType.SIMPLE_FACTUAL, k=default_k,
+            retrieval_strategy="hybrid", use_reranker=True,
+            max_tokens=512, model_tier="flash",
+            fleet_id=fleet_id, rack_id=rack_id,
+            tenant_id=tenant_id, access_level=access_level,
         )
 
     def run(
@@ -139,22 +126,25 @@ class Orchestrator:
         product: Optional[str] = None,
     ) -> RAGResponse:
         t0 = time.perf_counter()
+
         rl_key = user_id or tenant_id or "anonymous"
         allowed, remaining = self.rate_limiter.check(rl_key)
         if not allowed:
             raise ValueError(
-                f"Rate limit exceeded ({self.rate_limiter.max_per_minute}/min). Retry later."
+                f"Rate limit exceeded ({self.rate_limiter.max_per_minute}/min). "
+                "Retry after a short pause."
             )
 
         clean = self.validate(query)
+
         fleet = get_fleet(fleet_id) if fleet_id else None
         rack = fleet.rack(rack_id) if fleet and rack_id else None
         default_k = (rack.top_k if rack and rack.top_k else None) or (
             fleet.default_top_k if fleet else 6
         )
         namespace = fleet.namespace(rack_id) if fleet else "default"
-        cache_scope = f"{tenant_id}:{namespace}"
 
+        cache_scope = f"{tenant_id}:{namespace}"
         cached = self.cache.get(clean, tenant_id=cache_scope)
         if cached:
             cached.latency_ms = (time.perf_counter() - t0) * 1000
@@ -170,11 +160,7 @@ class Orchestrator:
         )
         logger.info(
             "plan=%s fleet=%s rack=%s ns=%s rate_remaining=%d",
-            plan.query_type.value,
-            fleet_id,
-            rack_id,
-            namespace,
-            remaining,
+            plan.query_type.value, fleet_id, rack_id, namespace, remaining,
         )
 
         if plan.retrieval_strategy == "none":
@@ -240,20 +226,18 @@ class Orchestrator:
             )
 
         if plan.use_reranker and candidates:
-            candidates = self.reranker.rerank(clean, candidates, top_k=max(plan.k * 2, 12))
-        top_chunks = self.topk.select(candidates, k=plan.k)
+            reranked = self.reranker.rerank(clean, candidates, top_k=max(plan.k * 2, 20))
+        else:
+            reranked = candidates
+
+        top_chunks = self.topk.select(reranked, k=plan.k)
 
         tier = None
         bian_domains = getattr(plan, "bian_service_domains", None) or []
-        if rack and getattr(rack, "tier_ids", None):
+        if rack and rack.tier_ids:
             tier = fleet.tier(rack.tier_ids[0]) if fleet else None
         prompt = build_prompt(
-            clean,
-            top_chunks,
-            fleet=fleet,
-            rack=rack,
-            tier=tier,
-            bian_domains=bian_domains or None,
+            clean, top_chunks, fleet=fleet, rack=rack, tier=tier, bian_domains=bian_domains or None
         )
         raw_answer = self.generator.generate(prompt)
         answer, citations, faith = post_process(raw_answer, top_chunks)
@@ -267,6 +251,8 @@ class Orchestrator:
             faithfulness_score=faith,
             sources_used=len(top_chunks),
         )
-        if faith is None or faith >= 0.5:
+
+        if faith >= 0.5:
             self.cache.put(clean, response, tenant_id=cache_scope)
+
         return response
