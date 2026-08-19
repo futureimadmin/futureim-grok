@@ -6,6 +6,9 @@ Usage (from repo root):
   set PYTHONPATH=.
   python scripts/seed_bian_knowledge.py
 
+This walks fleets/bian/**/*.md, chunks with fleet_id=bian metadata, and dual-writes
+to DocStore. When GCP/Vertex is configured, embeddings are upserted as well.
+
 Volume is not capped — add as many service domain files as needed under fleets/bian/.
 """
 
@@ -42,17 +45,13 @@ def main() -> int:
     for path in files:
         rel = path.relative_to(ROOT).as_posix()
         text = path.read_text(encoding="utf-8")
+        # fleets/bian/{rack}/file.md
         parts = path.relative_to(BIAN_ROOT).parts
         rack_id = parts[0] if parts else "general"
+        # Scenario/pattern docs: tag domain from filename or keep structural rack
         if rack_id in {"_scenarios", "_patterns", "_standards", "_bom", "_api"}:
             domain = path.stem.replace("_", " ").title()
-            section = {
-                "_scenarios": "scenario",
-                "_patterns": "pattern",
-                "_standards": "standard",
-                "_bom": "bom",
-                "_api": "api",
-            }.get(rack_id, path.stem)
+            section = {"_scenarios": "scenario", "_patterns": "pattern", "_standards": "standard", "_bom": "bom", "_api": "api"}.get(rack_id, path.stem)
         else:
             domain = rack_id.replace("_", " ").title()
             section = path.stem
@@ -81,6 +80,7 @@ def main() -> int:
         total_chunks += n
         logger.info("Seeded %s → %d chunks (domain=%s)", rel, n, domain)
 
+        # Best-effort vector upsert when GCP is configured
         try:
             from src.ingestion.embedder import Embedder
             from src.query.vector_store import VectorStore
