@@ -62,12 +62,6 @@ KNOWLEDGE_BIAN_ROOT = ROOT / "knowledge" / "bian"
 
 
 def _discover_docs(include_knowledge: bool) -> List[Tuple[Path, str]]:
-    """
-    Returns list of (local_path, gcs_object_name).
-
-    Canonical object names always under fleets/bian/... so ingestion
-    sets fleet_id=bian, rack_id=<dir>, is_bian_reference=True.
-    """
     pairs: List[Tuple[Path, str]] = []
     seen_objects: set = set()
 
