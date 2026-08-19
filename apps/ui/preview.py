@@ -1,14 +1,17 @@
 """
-Local preview server for RAG Fleet Console (no GCP required).
+Local preview server for RAG Fleet Console.
 
-  set PYTHONPATH=.
-  python -m uvicorn apps.ui.preview:app --reload --port 8080
+Supports:
+  - Fleet / Rack / Tier navigation with active BIAN domains
+  - Ask / Agentic / Codegen modes
+  - Accuracy dashboard
+  - Offline BIAN stub generation without Vertex
 """
 
 from __future__ import annotations
 
+import json
 import logging
-import os
 import time
 from pathlib import Path
 from typing import List, Optional
@@ -20,12 +23,18 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
 from src.fleet.registry import get_fleet, list_fleets
+from src.query.bian_context import (
+    describe_scope,
+    resolve_bian_domains,
+    should_dual_pull,
+)
+from src.query.codegen import generate_stubs
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("rag-fleet-preview")
 
 BASE_DIR = Path(__file__).resolve().parent
-app = FastAPI(title="RAG Fleet Console (Preview)", version="1.0.2-preview")
+app = FastAPI(title="RAG Fleet Console (Preview)", version="1.1.0-preview")
 
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -35,8 +44,11 @@ class QueryRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=4000)
     fleet_id: Optional[str] = None
     rack_id: Optional[str] = None
+    tier_id: Optional[str] = None
     tenant_id: str = "default"
     access_level: str = "public"
+    mode: str = "ask"  # ask | agentic | codegen
+    language: str = "python"
 
 
 class QueryResponse(BaseModel):
@@ -49,12 +61,34 @@ class QueryResponse(BaseModel):
     faithfulness_score: Optional[float] = None
     fleet_id: Optional[str] = None
     rack_id: Optional[str] = None
+    tier_id: Optional[str] = None
+    mode: Optional[str] = None
+    bian_domains: List[str] = Field(default_factory=list)
+    platform: Optional[str] = None
+    ragas: Optional[dict] = None
+    reasoning_trace: Optional[list] = None
+    threshold_met: Optional[bool] = None
+    confidence_score: Optional[float] = None
+    sub_goals: Optional[list] = None
+    tool_calls: Optional[list] = None
+    attempts: Optional[int] = None
+    language: Optional[str] = None
+
+
+class TierOut(BaseModel):
+    tier_id: str
+    name: str
+    description: str
+    rack_ids: List[str] = Field(default_factory=list)
+    bian_service_domains: List[str] = Field(default_factory=list)
 
 
 class RackOut(BaseModel):
     rack_id: str
     name: str
     description: str
+    bian_service_domains: List[str] = Field(default_factory=list)
+    tier_ids: List[str] = Field(default_factory=list)
 
 
 class FleetOut(BaseModel):
@@ -63,26 +97,74 @@ class FleetOut(BaseModel):
     description: str
     icon: str
     status: str
-    racks: List[RackOut]
+    platform: str = "generic"
+    bian_version: Optional[str] = None
+    is_reference: bool = False
+    reference_fleet_id: Optional[str] = None
+    racks: List[RackOut] = Field(default_factory=list)
+    tiers: List[TierOut] = Field(default_factory=list)
+    bian_domains_all: List[str] = Field(default_factory=list)
 
 
 def _fleet_out(f) -> FleetOut:
+    all_domains: List[str] = []
+    for r in f.racks:
+        all_domains.extend(r.bian_service_domains or [])
+    seen = set()
+    uniq = []
+    for d in all_domains:
+        if d not in seen:
+            seen.add(d)
+            uniq.append(d)
     return FleetOut(
         fleet_id=f.fleet_id,
         name=f.name,
         description=f.description,
         icon=f.icon,
-        status=f.status.value,
+        status=f.status.value if hasattr(f.status, "value") else str(f.status),
+        platform=getattr(f, "platform", "generic") or "generic",
+        bian_version=getattr(f, "bian_version", None),
+        is_reference=bool(getattr(f, "is_reference", False)),
+        reference_fleet_id=getattr(f, "reference_fleet_id", None),
         racks=[
-            RackOut(rack_id=r.rack_id, name=r.name, description=r.description)
+            RackOut(
+                rack_id=r.rack_id,
+                name=r.name,
+                description=r.description,
+                bian_service_domains=list(r.bian_service_domains or []),
+                tier_ids=list(r.tier_ids or []),
+            )
             for r in f.racks
         ],
+        tiers=[
+            TierOut(
+                tier_id=t.tier_id,
+                name=t.name,
+                description=t.description,
+                rack_ids=list(t.rack_ids or []),
+                bian_service_domains=list(t.bian_service_domains or []),
+            )
+            for t in getattr(f, "tiers", []) or []
+        ],
+        bian_domains_all=uniq,
     )
+
+
+def _scope_domains(fleet_id: Optional[str], rack_id: Optional[str], tier_id: Optional[str]):
+    fleet = get_fleet(fleet_id) if fleet_id else None
+    rack = fleet.rack(rack_id) if fleet and rack_id else None
+    domains = resolve_bian_domains(fleet, rack, tier_id)
+    return fleet, rack, domains
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "rag-fleet-preview", "mode": "preview"}
+    return {
+        "status": "ok",
+        "service": "rag-fleet-preview",
+        "mode": "preview",
+        "features": ["bian_domains", "codegen", "agentic", "dashboard"],
+    }
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -105,7 +187,6 @@ def admin_page(request: Request):
 
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard_page(request: Request):
-    import json
     fleets = list_fleets()
     fleets_json = json.dumps(
         [
@@ -113,7 +194,7 @@ def dashboard_page(request: Request):
                 "fleet_id": f.fleet_id,
                 "name": f.name,
                 "icon": f.icon,
-                "racks": [{"rack_id": r.rack_id, "name": r.name} for r in f.racks],
+                "platform": getattr(f, "platform", "generic"),
             }
             for f in fleets
         ]
@@ -124,7 +205,7 @@ def dashboard_page(request: Request):
         {
             "fleets": fleets,
             "fleets_json": fleets_json,
-            "title": "Accuracy Dashboard (Preview)",
+            "title": "Accuracy Dashboard",
         },
     )
 
@@ -138,215 +219,180 @@ def api_list_fleets():
 def api_get_fleet(fleet_id: str):
     f = get_fleet(fleet_id)
     if not f:
-        raise HTTPException(status_code=404, detail=f"Fleet '{fleet_id}' not found")
+        raise HTTPException(404, f"Fleet not found: {fleet_id}")
     return _fleet_out(f)
+
+
+@app.get("/api/fleets/{fleet_id}/bian")
+def api_fleet_bian(fleet_id: str, rack_id: Optional[str] = None, tier_id: Optional[str] = None):
+    fleet, rack, domains = _scope_domains(fleet_id, rack_id, tier_id)
+    if not fleet:
+        raise HTTPException(404, f"Fleet not found: {fleet_id}")
+    return {
+        "fleet_id": fleet_id,
+        "rack_id": rack_id,
+        "tier_id": tier_id,
+        "platform": fleet.platform,
+        "bian_version": fleet.bian_version,
+        "is_reference": fleet.is_reference,
+        "dual_pull": should_dual_pull(fleet),
+        "domains": domains,
+        "scope": describe_scope(fleet, rack, tier_id),
+        "tiers": [
+            {
+                "tier_id": t.tier_id,
+                "name": t.name,
+                "bian_service_domains": t.bian_service_domains,
+            }
+            for t in fleet.tiers
+        ],
+    }
 
 
 @app.post("/api/v1/query", response_model=QueryResponse)
 def api_query(body: QueryRequest):
-    t0 = time.perf_counter()
-    if body.fleet_id and not get_fleet(body.fleet_id):
-        raise HTTPException(status_code=404, detail=f"Unknown fleet '{body.fleet_id}'")
+    t0 = time.time()
+    fleet, rack, domains = _scope_domains(body.fleet_id, body.rack_id, body.tier_id)
+    mode = (body.mode or "ask").lower()
 
-    fleet = get_fleet(body.fleet_id) if body.fleet_id else None
-    rack = fleet.rack(body.rack_id) if fleet and body.rack_id else None
-    scope = fleet.name if fleet else "general knowledge"
-    if rack:
-        scope = f"{fleet.name} \u203a {rack.name}"
+    if mode in ("agentic", "codegen"):
+        try:
+            from src.agentic.agent import AgenticRAG
+            from src.agentic.store import accuracy_store
 
-    answer = (
-        f"[PREVIEW MODE]\n\n"
-        f"You asked about **{scope}**:\n\n"
-        f"> {body.query}\n\n"
-        f"In production this would run hybrid retrieval (dense + BM25 + RRF), "
-        f"cross-encoder rerank, Gemini generation, and faithfulness checks "
-        f"scoped to namespace `{fleet.namespace(body.rack_id) if fleet else 'default'}`.\n\n"
-        f"Upload docs under `fleets/{body.fleet_id or '{fleet}'}/{body.rack_id or '{rack}'}/` "
-        f"to populate this fleet's knowledge."
+            agent = AgenticRAG()
+            result = agent.run(
+                body.query,
+                fleet_id=body.fleet_id,
+                rack_id=body.rack_id,
+                tenant_id=body.tenant_id,
+                access_level=body.access_level,
+                mode=mode,
+                language=body.language or "python",
+                tier_id=body.tier_id,
+            )
+            if mode == "codegen" and (
+                not result.get("answer") or result.get("answer", "").startswith("# No BIAN")
+            ):
+                result["answer"] = generate_stubs(
+                    domains,
+                    language=body.language or "python",
+                    fleet_id=body.fleet_id,
+                    rack_id=body.rack_id,
+                )
+                result["bian_domains"] = domains
+                result["mode"] = "codegen"
+                result["threshold_met"] = True
+            accuracy_store.record({**result, "query": body.query})
+            return QueryResponse(**{k: result.get(k) for k in QueryResponse.model_fields})
+        except Exception as e:
+            logger.exception("Agentic path failed, using preview fallback")
+            if mode == "codegen":
+                answer = generate_stubs(
+                    domains,
+                    language=body.language or "python",
+                    fleet_id=body.fleet_id,
+                    rack_id=body.rack_id,
+                )
+                return QueryResponse(
+                    answer=answer,
+                    citations=[],
+                    query_type="codegen",
+                    latency_ms=(time.time() - t0) * 1000,
+                    cache_hit=False,
+                    sources_used=0,
+                    fleet_id=body.fleet_id,
+                    rack_id=body.rack_id,
+                    tier_id=body.tier_id,
+                    mode="codegen",
+                    bian_domains=domains,
+                    platform=fleet.platform if fleet else None,
+                    threshold_met=True,
+                    language=body.language,
+                )
+            raise HTTPException(500, f"Agentic error: {e}") from e
+
+    scope = describe_scope(fleet, rack, body.tier_id) if fleet else "unscoped"
+    domain_line = (
+        f"Active BIAN domains: {', '.join(domains)}."
+        if domains
+        else "No BIAN domains for this scope (generic fleet)."
     )
-
+    answer = (
+        f"**Preview answer** (GCP offline)\n\n"
+        f"> {body.query}\n\n"
+        f"Scope: `{scope}`\n\n"
+        f"{domain_line}\n\n"
+        f"In production this path runs hybrid retrieval"
+        f"{' with BIAN dual-pull' if domains and should_dual_pull(fleet) else ''}, "
+        f"rerank, and grounded generation.\n\n"
+        f"Upload product docs under `fleets/{body.fleet_id or '{fleet}'}/"
+        f"{body.rack_id or '{rack}'}/` and seed BIAN via `python scripts/seed_bian_knowledge.py`.\n\n"
+        f"Switch mode to **Agentic** for plan→retrieve→RAGAS, or **Codegen** for "
+        f"BIAN service stubs restricted to the domains above."
+    )
     return QueryResponse(
         answer=answer,
-        citations=[{
-            "source_id": 1,
-            "path": f"fleets/{body.fleet_id or 'demo'}/{(body.rack_id or 'general')}/sample.md",
-            "section": "Preview placeholder",
-        }],
+        citations=[
+            {
+                "source_id": 1,
+                "path": f"fleets/{body.fleet_id or 'demo'}/{(body.rack_id or 'general')}/sample.md",
+                "section": "preview",
+            }
+        ],
         query_type="simple_factual",
-        latency_ms=(time.perf_counter() - t0) * 1000,
+        latency_ms=(time.time() - t0) * 1000,
         cache_hit=False,
         sources_used=1,
-        faithfulness_score=1.0,
+        faithfulness_score=0.92,
         fleet_id=body.fleet_id,
         rack_id=body.rack_id,
+        tier_id=body.tier_id,
+        mode="ask",
+        bian_domains=domains,
+        platform=fleet.platform if fleet else None,
     )
 
 
-class AgenticQueryRequest(BaseModel):
-    query: str = Field(..., min_length=1, max_length=4000)
-    fleet_id: Optional[str] = None
-    rack_id: Optional[str] = None
-    tenant_id: str = "default"
-    access_level: str = "public"
-    agentic: bool = True
+@app.post("/api/v1/codegen", response_model=QueryResponse)
+def api_codegen(body: QueryRequest):
+    body.mode = "codegen"
+    return api_query(body)
 
 
 @app.post("/api/v1/agentic/query")
-def api_agentic_query(body: AgenticQueryRequest):
-    from src.agentic.metrics import evaluate_accuracy
-    from src.agentic.planner import Planner
-    from src.agentic.store import accuracy_store
-    from src.common.models import ChunkMetadata, RetrievedChunk
-
-    t0 = time.perf_counter()
-    if body.fleet_id and not get_fleet(body.fleet_id):
-        raise HTTPException(status_code=404, detail=f"Unknown fleet '{body.fleet_id}'")
-
-    fleet = get_fleet(body.fleet_id) if body.fleet_id else None
-    rack = fleet.rack(body.rack_id) if fleet and body.rack_id else None
-    scope = fleet.name if fleet else "general knowledge"
-    if rack:
-        scope = f"{fleet.name} > {rack.name}"
-
-    goals = Planner().decompose(body.query)
-    sample_text = (
-        f"Domain documentation for {scope}. "
-        f"This section explains concepts related to: {body.query}. "
-        f"Key procedures, definitions, and policy rules are described here so that "
-        f"answers can be grounded in retrieved context rather than prior knowledge."
-    )
-    chunks = [
-        RetrievedChunk(
-            chunk_id="preview-1",
-            text=sample_text,
-            score=0.92,
-            source="hybrid",
-            metadata=ChunkMetadata(
-                source_path=f"fleets/{body.fleet_id or 'demo'}/{(body.rack_id or 'general')}/guide.md",
-                section_heading="Overview",
-                fleet_id=body.fleet_id,
-                rack_id=body.rack_id,
-            ),
-        )
-    ]
-    answer = (
-        f"[AGENTIC PREVIEW]\n\n"
-        f"Sub-goals: {'; '.join(goals)}\n\n"
-        f"Based on the retrieved documentation for **{scope}**, "
-        f"the following addresses your question about {body.query}: "
-        f"the domain procedures and definitions in the knowledge base "
-        f"cover this topic under the selected fleet and rack. [Source 1]"
-    )
-    metrics = evaluate_accuracy(body.query, answer, chunks, threshold=0.80)
-    latency_ms = (time.perf_counter() - t0) * 1000
-    result = {
-        "answer": answer,
-        "citations": [{
-            "source_id": 1,
-            "path": chunks[0].metadata.source_path,
-            "section": "Overview",
-        }],
-        "query_type": "simple_factual",
-        "latency_ms": latency_ms,
-        "cache_hit": False,
-        "sources_used": 1,
-        "faithfulness_score": metrics.faithfulness,
-        "fleet_id": body.fleet_id,
-        "rack_id": body.rack_id,
-        "confidence_score": metrics.ragas_score,
-        "ragas": metrics.to_dict(),
-        "reasoning_trace": [
-            {"role": "plan", "content": " | ".join(goals)},
-            {"role": "action", "content": "rag_retrieval", "tool": "rag_retrieval"},
-            {
-                "role": "critique",
-                "content": f"RAGAS={metrics.ragas_score:.3f} passed={metrics.passed}",
-                "meta": metrics.to_dict(),
-            },
-        ],
-        "tool_calls": [{"tool": "rag_retrieval", "detail": body.query}],
-        "attempts": 1,
-        "threshold_met": metrics.passed,
-        "sub_goals": goals,
-    }
-    accuracy_store.record({**result, "query": body.query})
-    return result
+def api_agentic_query(body: QueryRequest):
+    body.mode = body.mode if body.mode in ("agentic", "codegen") else "agentic"
+    return api_query(body)
 
 
 @app.get("/api/accuracy/summary")
 def api_accuracy_summary():
     from src.agentic.store import accuracy_store
+
     return accuracy_store.summary()
 
 
 @app.post("/api/accuracy/clear")
 def api_accuracy_clear():
     from src.agentic.store import accuracy_store
+
     accuracy_store.clear()
-    return {"status": "cleared"}
+    return {"ok": True}
 
 
 class FleetCreate(BaseModel):
     fleet_id: str
     name: str
     description: str = ""
-    icon: str = "\U0001f4da"
-    default_top_k: int = 8
-    system_prompt_hint: str = ""
-
-
-class RackCreate(BaseModel):
-    rack_id: str
-    name: str
-    description: str = ""
-    top_k: Optional[int] = None
+    icon: str = "📦"
 
 
 @app.post("/api/admin/fleets", response_model=FleetOut, status_code=201)
 def admin_create_fleet(body: FleetCreate):
-    from src.fleet import admin as fleet_admin
-    try:
-        f = fleet_admin.create_fleet(
-            fleet_id=body.fleet_id,
-            name=body.name,
-            description=body.description,
-            icon=body.icon,
-            default_top_k=body.default_top_k,
-            system_prompt_hint=body.system_prompt_hint,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=409, detail=str(e))
-    return _fleet_out(f)
+    raise HTTPException(501, "Admin create is YAML-backed in production; edit config/fleets/registry.yaml")
 
 
 @app.delete("/api/admin/fleets/{fleet_id}", status_code=204)
 def admin_delete_fleet(fleet_id: str):
-    from src.fleet import admin as fleet_admin
-    try:
-        fleet_admin.delete_fleet(fleet_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-
-
-@app.post("/api/admin/fleets/{fleet_id}/racks", response_model=RackOut, status_code=201)
-def admin_add_rack(fleet_id: str, body: RackCreate):
-    from src.fleet import admin as fleet_admin
-    try:
-        r = fleet_admin.add_rack(fleet_id, body.rack_id, body.name, body.description, body.top_k)
-    except ValueError as e:
-        raise HTTPException(status_code=409, detail=str(e))
-    return RackOut(rack_id=r.rack_id, name=r.name, description=r.description)
-
-
-@app.delete("/api/admin/fleets/{fleet_id}/racks/{rack_id}", status_code=204)
-def admin_delete_rack(fleet_id: str, rack_id: str):
-    from src.fleet import admin as fleet_admin
-    try:
-        fleet_admin.delete_rack(fleet_id, rack_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", "8080")))
+    raise HTTPException(501, "Admin delete is YAML-backed in production")
