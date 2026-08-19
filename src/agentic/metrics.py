@@ -2,11 +2,14 @@
 Accuracy Measurement Layer (Agentic RAG architecture).
 
 Implements the four RAGAS-style metrics + composite score:
-  - Faithfulness Score
-  - Answer Relevance
-  - Context Precision
-  - Context Recall
-  - RAGAS Score (target > 0.80)
+  - Faithfulness Score   — % claims grounded in retrieved context
+  - Answer Relevance     — does answer address the question?
+  - Context Precision    — are retrieved chunks actually useful?
+  - Context Recall       — did retrieval find relevant information?
+  - RAGAS Score          — composite 0.0–1.0 (target > 0.80)
+
+Works offline with heuristics; optionally upgrades to LLM-as-judge when
+Vertex AI is configured.
 """
 
 from __future__ import annotations
@@ -50,7 +53,8 @@ class AccuracyMetrics:
     detail: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        d = asdict(self)
+        return d
 
 
 def faithfulness_score(answer: str, chunks: List[RetrievedChunk]) -> float:
@@ -75,7 +79,9 @@ def faithfulness_score(answer: str, chunks: List[RetrievedChunk]) -> float:
 def answer_relevance_score(query: str, answer: str) -> float:
     qt = _tokens(query)
     at = _tokens(answer)
-    if not qt or not at:
+    if not qt:
+        return 0.0
+    if not at:
         return 0.0
     overlap = len(qt & at) / len(qt)
     if "don't have enough information" in (answer or "").lower():
@@ -89,7 +95,11 @@ def context_precision_score(query: str, chunks: List[RetrievedChunk]) -> float:
     qt = _tokens(query)
     if not qt:
         return 0.0
-    useful = sum(1 for c in chunks if _tokens(c.text) & qt)
+    useful = 0
+    for c in chunks:
+        ct = _tokens(c.text)
+        if ct & qt:
+            useful += 1
     return useful / len(chunks)
 
 
@@ -102,7 +112,8 @@ def context_recall_score(query: str, chunks: List[RetrievedChunk], answer: str) 
     corpus_toks = _tokens(" ".join(c.text for c in chunks))
     if not corpus_toks:
         return 0.0
-    return len(answer_toks & corpus_toks) / len(answer_toks)
+    covered = len(answer_toks & corpus_toks)
+    return covered / len(answer_toks)
 
 
 def ragas_composite(

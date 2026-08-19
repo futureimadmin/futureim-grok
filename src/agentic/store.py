@@ -63,7 +63,9 @@ class AccuracyStore:
         by_fleet: Dict[str, Dict[str, float]] = {}
         for r in runs:
             fid = r.get("fleet_id") or "unscoped"
-            bucket = by_fleet.setdefault(fid, {"n": 0, "ragas_sum": 0.0, "pass": 0})
+            bucket = by_fleet.setdefault(
+                fid, {"n": 0, "ragas_sum": 0.0, "pass": 0}
+            )
             bucket["n"] += 1
             bucket["ragas_sum"] += r["ragas_score"]
             if r["passed"]:

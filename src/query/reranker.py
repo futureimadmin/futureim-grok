@@ -1,8 +1,5 @@
 """
 Cross-encoder reranking (section 6.2 of the architecture guide).
-
-Uses a simple relevance heuristic by default; swap in Cohere Rerank
-or a Vertex ranking model for production quality.
 """
 
 from __future__ import annotations
