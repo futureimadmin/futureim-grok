@@ -1,12 +1,5 @@
 """
 Doc Store – Tier 1 dual-write companion to the Vector Store.
-
-Vector Store holds (chunk_id, embedding, metadata) — no raw text
-Doc Store holds   (chunk_id → raw text + full metadata)
-
-At query time the retriever:
-  1. ANN / BM25 → list of chunk_ids
-  2. Doc Store  → hydrate text by chunk_id
 """
 
 from __future__ import annotations
@@ -37,9 +30,9 @@ class DocStore:
                 from google.cloud import storage
 
                 self._gcs = storage.Client()
-                logger.info("DocStore GCS bucket=%s prefix=%s", self.bucket_name, self.prefix)
+                logger.info("DocStore using GCS bucket=%s prefix=%s", self.bucket_name, self.prefix)
             except Exception as e:
-                logger.warning("GCS unavailable for DocStore (%s) – local memory", e)
+                logger.warning("GCS unavailable for DocStore (%s) – using local memory", e)
                 self._gcs = None
         else:
             logger.info("DocStore local-memory mode (set PROCESSED_BUCKET for GCS)")

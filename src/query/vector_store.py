@@ -1,8 +1,5 @@
 """
 Vertex AI Vector Search client with fleet/rack metadata filters.
-
-Namespace isolation via restricts on fleet_id and rack_id so one
-physical index can host many fleets safely.
 """
 
 from __future__ import annotations
@@ -51,7 +48,18 @@ class VectorStore:
         if not filters:
             return []
         restricts = []
-        for key in ("fleet_id", "rack_id", "tenant_id", "access_level", "namespace"):
+        for key in (
+            "fleet_id",
+            "rack_id",
+            "tier_id",
+            "tenant_id",
+            "access_level",
+            "namespace",
+            "product",
+            "doc_type",
+            "bian_service_domain",
+            "bian_version",
+        ):
             val = filters.get(key)
             if val:
                 restricts.append({"namespace": key, "allow_list": [str(val)]})
@@ -67,7 +75,18 @@ class VectorStore:
         for r in records:
             meta = r.get("metadata") or {}
             restricts = []
-            for key in ("fleet_id", "rack_id", "tenant_id", "access_level", "namespace"):
+            for key in (
+                "fleet_id",
+                "rack_id",
+                "tier_id",
+                "tenant_id",
+                "access_level",
+                "namespace",
+                "product",
+                "doc_type",
+                "bian_service_domain",
+                "bian_version",
+            ):
                 if meta.get(key):
                     restricts.append({"namespace": key, "allow_list": [str(meta[key])]})
             datapoints.append(
