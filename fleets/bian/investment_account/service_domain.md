@@ -6,7 +6,7 @@ Maintain investment/custody account structures, cash sweeps, and holdings books.
 ## Control record
 Investment Account Arrangement
 
-## Typical service operations
+## Operations
 Initiate · Update · Control · Retrieve
 
 ## Key business objects

@@ -6,5 +6,5 @@ Fixed-term deposit contracts — booking, renewal, early termination, maturity p
 ## Control record
 Term Deposit Arrangement
 
-## Typical service operations
+## Operations
 Initiate · Update · Control · Retrieve · Execute

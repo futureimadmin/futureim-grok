@@ -1,7 +1,5 @@
 # BIAN Service Domain: Party Reference Data Directory
 
-**Category:** Reference data
-
 ## Purpose
 Authoritative party identity attributes for reuse across domains.
 

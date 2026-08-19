@@ -6,5 +6,5 @@ Interest-bearing savings products with product-specific withdrawal and interest 
 ## Control record
 Savings Account Arrangement
 
-## Typical service operations
+## Operations
 Initiate · Update · Control · Retrieve

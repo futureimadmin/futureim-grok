@@ -3,14 +3,10 @@
 **Business Domain:** Investment Management
 
 ## Purpose
-Ongoing discretionary or advisory management of client portfolios — rebalancing,
-corporate actions, performance attribution.
+Ongoing discretionary or advisory management of client portfolios — rebalancing, corporate actions, performance attribution.
 
-## Control record
-Investment Portfolio
-
-## Typical service operations
+## Operations
 Initiate · Update · Control · Retrieve · Execute · Evaluate
 
-## Related domains
+## Related
 Investment Portfolio Planning · Investment Portfolio Analysis · Investment Account
