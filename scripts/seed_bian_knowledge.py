@@ -47,9 +47,9 @@ def main() -> int:
         text = path.read_text(encoding="utf-8")
         parts = path.relative_to(BIAN_ROOT).parts
         rack_id = parts[0] if parts else "general"
-        if rack_id in {"_scenarios", "_patterns"}:
+        if rack_id in {"_scenarios", "_patterns", "_standards", "_bom", "_api"}:
             domain = path.stem.replace("_", " ").title()
-            section = "scenario" if rack_id == "_scenarios" else "pattern"
+            section = {"_scenarios": "scenario", "_patterns": "pattern", "_standards": "standard", "_bom": "bom", "_api": "api"}.get(rack_id, path.stem)
         else:
             domain = rack_id.replace("_", " ").title()
             section = path.stem
