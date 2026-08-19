@@ -162,9 +162,15 @@ class AgenticRAG:
                     )
                     if result.success and result.data:
                         all_chunks.extend(result.data)
-                        memory.observe(f"Retrieved {len(result.data)} chunks for goal", tool=tool_name)
+                        memory.observe(
+                            f"Retrieved {len(result.data)} chunks for goal",
+                            tool=tool_name,
+                        )
                     else:
-                        memory.observe(f"Retrieval empty: {result.error or 'no hits'}", tool=tool_name)
+                        memory.observe(
+                            f"Retrieval empty: {result.error or 'no hits'}",
+                            tool=tool_name,
+                        )
                 elif tool_name == "bian_codegen":
                     result = self.tools.call(
                         "bian_codegen",
@@ -176,14 +182,23 @@ class AgenticRAG:
                     )
                     if result.success and result.data:
                         codegen_payload = result.data
-                        memory.observe(f"Generated stubs for {len(domains)} BIAN domains", tool=tool_name)
+                        memory.observe(
+                            f"Generated stubs for {len(domains)} BIAN domains",
+                            tool=tool_name,
+                        )
                     else:
-                        memory.observe(f"Codegen failed: {result.error}", tool=tool_name)
+                        memory.observe(
+                            f"Codegen failed: {result.error}",
+                            tool=tool_name,
+                        )
                 elif tool_name == "accuracy_evaluator":
                     continue
                 else:
                     result = self.tools.call(tool_name, query=clean)
-                    memory.observe(result.meta.get("note", str(result.data))[:200], tool=tool_name)
+                    memory.observe(
+                        result.meta.get("note", str(result.data))[:200],
+                        tool=tool_name,
+                    )
 
             by_id: Dict[str, RetrievedChunk] = {}
             for c in all_chunks:
@@ -236,7 +251,12 @@ class AgenticRAG:
                     )
             else:
                 prompt = build_prompt(
-                    clean, chunks, fleet=fleet, rack=rack, tier=tier, bian_domains=domains or None
+                    clean,
+                    chunks,
+                    fleet=fleet,
+                    rack=rack,
+                    tier=tier,
+                    bian_domains=domains or None,
                 )
                 if self.generator is not None:
                     try:
@@ -270,9 +290,12 @@ class AgenticRAG:
             if eval_result.success and isinstance(eval_result.data, AccuracyMetrics):
                 metrics = eval_result.data
             memory.critique(
-                f"RAGAS={metrics.ragas_score:.3f} faith={metrics.faithfulness:.3f} "
-                f"rel={metrics.answer_relevance:.3f} prec={metrics.context_precision:.3f} "
-                f"recall={metrics.context_recall:.3f} passed={metrics.passed}",
+                f"RAGAS={metrics.ragas_score:.3f} "
+                f"faith={metrics.faithfulness:.3f} "
+                f"rel={metrics.answer_relevance:.3f} "
+                f"prec={metrics.context_precision:.3f} "
+                f"recall={metrics.context_recall:.3f} "
+                f"passed={metrics.passed}",
                 meta=metrics.to_dict(),
             )
 
@@ -281,7 +304,9 @@ class AgenticRAG:
                 break
 
             if attempt <= self.max_retries:
-                memory.think(f"Score {metrics.ragas_score:.3f} < {self.threshold} — re-planning")
+                memory.think(
+                    f"Score {metrics.ragas_score:.3f} < {self.threshold} — re-planning"
+                )
                 if filters.get("rack_id"):
                     filters = {**filters, "rack_id": None}
                     memory.act("replan", "Dropped rack filter to widen retrieval")
@@ -292,12 +317,16 @@ class AgenticRAG:
                 ]
                 memory.plan(goals)
             else:
-                memory.think(f"Max retries reached — best-effort (RAGAS={metrics.ragas_score:.3f})")
+                memory.think(
+                    f"Max retries reached — best-effort (RAGAS={metrics.ragas_score:.3f})"
+                )
 
         latency_ms = (time.perf_counter() - t0) * 1000
         return {
             "answer": answer,
-            "citations": [c.model_dump() if hasattr(c, "model_dump") else c for c in citations],
+            "citations": [
+                c.model_dump() if hasattr(c, "model_dump") else c for c in citations
+            ],
             "query_type": QueryType.SIMPLE_FACTUAL.value,
             "latency_ms": latency_ms,
             "cache_hit": False,
