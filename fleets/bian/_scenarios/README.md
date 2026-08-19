@@ -10,9 +10,7 @@ They are seeded into the `bian` reference fleet so Agentic RAG and Codegen can r
 | `current_account_operations.md` | CA deposits, withdrawals, liens |
 | `loan_lifecycle_and_delinquency.md` | Loan servicing + delinquency handoff |
 | `corporate_and_syndicated_loan.md` | Corporate + syndicated flows |
-| `investment_portfolio_flow.md` | Wealth planning → trading |
+| `customer_onboarding.md` | Party → CRM → Offer → facility |
+| `card_authorization_flow.md` | Auth → capture → clearing separation |
 
-Also see `fleets/bian/_patterns/service_operations.md` for the CR/BQ operation taxonomy.
-
-**Seed:** `python scripts/seed_bian_knowledge.py`
-**GCS:** `python scripts/upload_bian_to_gcs.py`
+Also see `fleets/bian/_patterns/service_operations.md` for CR/BQ operation taxonomy.

@@ -1,12 +1,12 @@
-# Business Scenario: Customer onboarding
+# Business Scenario: Customer onboarding (party → relationship → offer)
 
 ```text
-1. Party Reference Data Directory — Register/Retrieve
-2. Party Authentication — Evaluate
-3. Customer Relationship Management — Initiate
-4. Customer Offer — Initiate/Evaluate
-5. Product facility (CA / Loan / …) — Initiate CR
-6. Document Services — capture evidence
+1. Party Reference Data Directory — Register/Retrieve party
+2. Party Authentication — Evaluate identity assurance
+3. Customer Relationship Management — Initiate relationship
+4. Customer Offer — Initiate/Evaluate product offer
+5. Product-specific facility (Current Account / Loan / …) — Initiate CR
+6. Document Services — capture evidence (AsyncAPI-friendly)
 ```
 
 ```mermaid
@@ -22,8 +22,6 @@ sequenceDiagram
     Auth->>Auth: Evaluate
     CRM->>CRM: Initiate relationship
     Offer->>Offer: Initiate/Evaluate offer
-    Fac->>Fac: Initiate facility CR
-    Doc->>Doc: Capture/Retrieve evidence
+    Fac->>Fac: Initiate CR
+    Doc->>Doc: Capture evidence
 ```
-
-Security: KYC retention; minimize PII in vector index.

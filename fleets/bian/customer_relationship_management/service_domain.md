@@ -1,6 +1,6 @@
 # BIAN Service Domain: Customer Relationship Management
 
-**API:** CustomerRelationshipManagement.yaml
+**Category:** Customer
 
 ## Purpose
 Relationship-level view of the customer beyond a single product arrangement.

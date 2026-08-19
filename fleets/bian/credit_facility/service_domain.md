@@ -1,10 +1,10 @@
 # BIAN Service Domain: Credit Facility
 
 ## Purpose
-Commitment / availability structures independent of a single loan instance — limits, headroom, product buckets.
+Committed credit line structure — limits, utilisation, availability.
 
 ## Operations
 Initiate · Update · Control · Retrieve · Evaluate
 
 ## Related
-Corporate Loan · Limit And Exposure Management · Credit Management
+Corporate Loan · Syndicated Loan · Limit And Exposure Management · Credit Management

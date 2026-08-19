@@ -1,13 +1,10 @@
 # BIAN Service Domain: Consumer Loan
 
-**Category:** Lending
-**API:** ConsumerLoan.yaml
-
 ## Purpose
-Unsecured or lightly secured retail credit facilities distinct from mortgage and corporate bilateral loans.
+Retail unsecured/secured consumer credit facility specialisation of Loan.
 
 ## Operations
-Initiate · Update · Control · Execute · Retrieve · Request
+Initiate · Update · Control · Execute · Retrieve
 
 ## Related
-Customer Offer · Credit Management · Payment Order/Execution · Limit And Exposure Management
+Loan · Credit Management · Customer Offer · Payment Execution

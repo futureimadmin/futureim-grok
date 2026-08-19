@@ -1,12 +1,10 @@
 # BIAN Service Domain: Investment Portfolio Management
 
-**Business Domain:** Investment Management
-
 ## Purpose
-Ongoing discretionary or advisory management of client portfolios — rebalancing, corporate actions, performance attribution.
+Ongoing management of investment portfolios — rebalancing, mandates, performance attribution.
 
 ## Operations
-Initiate · Update · Control · Retrieve · Execute · Evaluate
+Initiate · Update · Control · Retrieve · Execute
 
 ## Related
-Investment Portfolio Planning · Investment Portfolio Analysis · Investment Account
+Investment Portfolio Planning · Investment Portfolio Analysis · Investment Account · eTrading Workbench

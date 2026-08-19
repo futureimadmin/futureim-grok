@@ -1,13 +1,10 @@
 # BIAN Service Domain: Card Authorization
 
-**Category:** Cards
-**Functional pattern:** Assess-style evaluation of authorization requests
-
 ## Purpose
-Real-time authorization decisioning (device, authN, credit, fraud checks as BQs).
+Real-time authorization decision for card transactions (auth only — not capture/clearing).
 
 ## Operations
-Evaluate · Update · Execute · Exchange · Retrieve
+Evaluate · Control · Retrieve
 
-## PCI
-Authorization paths must not persist raw PAN in logs or RAG corpora; tokenize at edge.
+## Related
+Party Authentication · Fraud Evaluation · Card Capture · Card Clearing

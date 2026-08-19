@@ -1,15 +1,10 @@
 # BIAN Service Domain: Corporate Loan
 
-**Business Domain:** Loans / Corporate Banking
-
 ## Purpose
-Bilateral commercial credit facilities — commitments, drawdowns, repayments, covenants.
+Bilateral commercial loan facilities — commitment, drawdown, covenants, repayment.
 
-## Control record
-Corporate Loan Facility
+## Operations
+Initiate · Update · Control · Execute · Retrieve
 
-## Typical service operations
-Initiate · Update · Control · Retrieve · Execute · Request
-
-## Related domains
-Credit Facility · Credit Management · Limit And Exposure Management · Syndicated Loan · Collateral
+## Related
+Credit Facility · Credit Management · Limit And Exposure Management · Collateral
