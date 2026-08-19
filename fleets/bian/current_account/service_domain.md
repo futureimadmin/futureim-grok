@@ -3,8 +3,7 @@
 **Business Domain:** Loans and Deposits
 
 ## Purpose
-Demand deposit current accounts for retail and, via Corporate Current Account,
-commercial clients — balances, overdrafts, statements, holds.
+Demand deposit current accounts — balances, overdrafts, statements, holds.
 
 ## Control record
 Current Account Arrangement

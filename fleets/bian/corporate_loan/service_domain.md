@@ -1,20 +1,15 @@
 # BIAN Service Domain: Corporate Loan
 
-**Business Area:** Operations and Execution · **Business Domain:** Loans and Deposits
+**Business Domain:** Loans / Corporate Banking
 
 ## Purpose
-Manage the lifecycle of bilateral corporate loan facilities — initiation, drawdown,
-repayment, covenant monitoring, and closure.
+Bilateral commercial credit facilities — commitments, drawdowns, repayments, covenants.
 
 ## Control record
-Corporate Loan Facility (arrangement between bank and corporate obligor).
+Corporate Loan Facility
 
 ## Typical service operations
 Initiate · Update · Control · Retrieve · Execute · Request
 
-## Key business objects
-Facility, Drawdown, Repayment Schedule, Covenant, Collateral Link, Party (Obligor)
-
-## Notes for product fleets
-Product policy lives in the bank's `corporate_lending` fleet racks; keep structural
-boundaries aligned to this domain.
+## Related domains
+Credit Facility · Credit Management · Limit And Exposure Management · Syndicated Loan · Collateral

@@ -4,7 +4,7 @@
 **API:** ConsumerLoan.yaml
 
 ## Purpose
-Retail credit facilities distinct from mortgage and corporate bilateral loans.
+Unsecured or lightly secured retail credit facilities distinct from mortgage and corporate bilateral loans.
 
 ## Operations
 Initiate · Update · Control · Execute · Retrieve · Request

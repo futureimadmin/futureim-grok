@@ -1,14 +1,10 @@
 # BIAN Service Domain: Credit Facility
 
 ## Purpose
-Maintain revolving and non-revolving credit facilities independent of a single
-loan instance — commitments, available headroom, and utilisation.
+Commitment / availability structures independent of a single loan instance — limits, headroom, product buckets.
 
-## Control record
-Credit Facility Arrangement
-
-## Typical service operations
+## Operations
 Initiate · Update · Control · Retrieve · Evaluate
 
-## Key business objects
-Commitment, Utilisation, Availability, Expiry, Linked Products
+## Related
+Corporate Loan · Limit And Exposure Management · Credit Management
