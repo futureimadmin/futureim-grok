@@ -1,48 +1,32 @@
 # BIAN Service Domain: Loan
 
 **BIAN version:** 12 (reference)
-**Platform role:** Base platform service domain for lending facilities.
 
 ## Purpose
 
-The **Loan** service domain manages the lifecycle of a credit facility extended to a customer: arrangement, drawdown, interest application, repayment, restructuring, and closure.
+Lifecycle management of loan facilities — initiation, disbursement, repayment scheduling, interest application, restructuring, and closure.
 
-## Core business objects (conceptual)
+## Control record
 
-| Object | Role |
-|--------|------|
-| Loan Facility | Master agreement for the credit line or term loan |
-| Drawdown / Disbursement | Funds advanced against the facility |
-| Repayment Schedule | Planned principal and interest obligations |
-| Outstanding Balance | Current principal, interest, fees |
-| Loan Transaction | Accounting events (disburse, repay, write-off) |
+LoanFacility (or product-specific specialisations such as MortgageLoanFacility).
 
-## Representative service operations (control-record style)
+## Typical BQs
 
-- Initiate / Request loan facility
-- Update facility terms (within policy)
-- Execute drawdown
-- Apply repayment
-- Assess outstanding position
-- Restructure facility
-- Close / terminate facility
+Disbursement · Repayment · Interest · Fees · Billing · Collateral / Lien · Restructuring
+
+## Operations
+
+Initiate · Update · Control · Execute · Request · Retrieve · Exchange
 
 ## Boundaries
 
-- **Credit Management** decides risk appetite and limits; Loan executes the facility within those limits.
-- **Collateral Asset Administration** links security assets; Loan does not value collateral itself.
-- **Customer Offer** produces the commercial offer; Loan books the accepted facility.
-- **Customer Agreement** may hold the legal agreement wrapper; Loan holds operational facility state.
+| Domain | Owns | Does not own |
+|--------|------|--------------|
+| Loan | Facility CR, schedule, status | Credit decision (Credit Management) |
+| Payment Order/Execution | Instruction and settlement | Facility accounting rules |
+| Collateral | Asset master and allocation | Loan repayment plan |
 
-## Coding guidance (RAG-scoped)
+## Coding guidance
 
-When generating services for a lending rack:
-
-1. Name public APIs and aggregates using Loan facility language (not generic "Account" unless Current Account domain applies).
-2. Separate **origination** (offer → agreement → facility create) from **servicing** (drawdown, repay, restructure).
-3. Emit domain events: `FacilityBooked`, `DrawdownExecuted`, `RepaymentApplied`, `FacilityClosed`.
-4. Do not embed credit decision logic inside Loan services — call Credit Management.
-
-## Related product fleets
-
-- `consumer_lending` racks: personal_loans, mortgages, credit_cards, collections
+- Model facility as aggregate root; do not collapse credit assessment into loan Initiate.
+- Sequence: Offer → Credit Evaluate → Collateral Initiate → Loan Initiate → Payment Execute (disbursement).
