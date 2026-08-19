@@ -11,7 +11,7 @@ Policy:
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from src.fleet.models import Fleet, Rack
 from src.fleet.registry import get_fleet, get_registry
@@ -24,7 +24,6 @@ def resolve_bian_domains(
     rack: Optional[Rack] = None,
     tier_id: Optional[str] = None,
 ) -> List[str]:
-    """BIAN service domain names for this scope."""
     if not fleet or fleet.platform != "bian":
         return []
     if rack and rack.bian_service_domains:
@@ -70,7 +69,6 @@ def bian_reference_filters(
     access_level: str = "public",
     bian_version: Optional[str] = None,
 ) -> List[Dict]:
-    """One filter dict per BIAN domain (OR via parallel retrieve + merge)."""
     reg = get_registry()
     ref = reg.reference_fleet()
     ref_id = ref.fleet_id if ref else "bian"
