@@ -1,31 +1,36 @@
 # BIAN Business Object Model (BOM) — core entities
 
-**Purpose:** Shared semantic foundation across service domains. APIs and CRs specialize these objects; they are not a shared database.
+**Purpose:** Shared semantic foundation across service domains.
 
 ## Backbone chain
 
 ```text
-Party → enters → Agreement → defines → Arrangement → manages → Account → records → Transaction
+Party → Agreement → Arrangement → Account → Transaction
 ```
 
-| Object | Meaning |
-|--------|--------|
-| **Party** | Legal/identity entity |
-| **Agreement** | Formal understanding between parties |
-| **Arrangement** | Commitment to perform actions |
-| **Account** | Log of value/obligation movements |
-| **Transaction** | Planned or performed action |
+## Party / KYC objects (enterprise)
 
-## Supporting objects
+PartyRelationship, QualificationCheck, LegalEntity, OwnershipStructure, CustomerProfile, Document, Entitlement, AuthorizationDecision
 
-PartyRole · BankingProduct · Service · Event · Feature
+## Cards objects
 
-## ISO 20022 alignment
+Card, CardTransaction, CardCapture, ClearingBatch, CardCase, Statement
 
-BIAN Semantic APIs offer BOM-extended and ISO20022+DDD-annotated OAS 3.x variants. Prefer ISO20022 field names for payments/securities interoperability.
+## Payments / accounts
+
+PaymentInstruction, PaymentOrder, Mandate, VirtualAccount, StandingOrder
+
+## Lending / trade
+
+Facility, CollateralAsset, Guarantee, Project/SPV
+
+## Supporting
+
+PartyRole, BankingProduct, Service, Event, Feature, CreditRating, FraudCase/Alert
 
 ## Coding / RAG rules
 
 1. Do not collapse Party and Account across domains.
-2. Loan CR vs Payment Execution own different concerns.
-3. Codegen accepts references (`partyReference`, `arrangementReference`), not full masters.
+2. KYC lives in Party Lifecycle Management — product domains use partyReference only.
+3. Card domains own Card/CardTransaction; do not model card auth inside Payment Order.
+4. Codegen stubs accept references, not full party masters.
