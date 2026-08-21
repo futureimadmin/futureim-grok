@@ -1,0 +1,110 @@
+# Enterprise common fleet — capabilities shared by ALL product fleets / racks / tiers
+fleets:
+  - fleet_id: enterprise
+    name: Enterprise Common
+    description: >
+      Cross-cutting banking capabilities used by every product fleet: KYC/KYB
+      (Party Lifecycle), party data, authentication, entitlements, documents,
+      fraud evaluation, credit rating, and regulatory reporting.
+    icon: "🏛️"
+    status: active
+    platform: bian
+    bian_version: "12"
+    is_reference: false
+    reference_fleet_id: bian
+    default_top_k: 10
+    documents_prefix: fleets/enterprise/
+    system_prompt_hint: >
+      You support enterprise shared services. Prefer BIAN Party Lifecycle Management
+      (KYC/KYB), Party Reference Data, Party Authentication, Customer Access Entitlement,
+      Document Services, Fraud Evaluation, and Customer Credit Rating. Never silo KYC
+      inside a single product fleet — it is common to all.
+    tiers:
+      - tier_id: party_kyc
+        name: Party & KYC
+        rack_ids: [kyc_onboarding, party_data, legal_entities]
+        bian_service_domains:
+          - Party Lifecycle Management
+          - Party Reference Data Management
+          - Party Data Management
+          - Legal Entity Directory
+          - Customer Profile
+          - Document Services
+      - tier_id: access_security
+        name: Access & Security
+        rack_ids: [authentication, entitlements, transaction_auth]
+        bian_service_domains:
+          - Party Authentication
+          - Customer Access Entitlement
+          - Transaction Authorization
+      - tier_id: risk_compliance
+        name: Risk & Compliance
+        rack_ids: [fraud, credit_rating, regulatory]
+        bian_service_domains:
+          - Fraud Evaluation
+          - Customer Credit Rating
+          - Regulatory Reporting
+      - tier_id: customer_common
+        name: Customer Common
+        rack_ids: [agreements, eligibility, position]
+        bian_service_domains:
+          - Customer Agreement
+          - Customer Product And Service Eligibility
+          - Customer Position
+          - Servicing Event History
+          - Customer Relationship Management
+    racks:
+      - rack_id: kyc_onboarding
+        name: KYC / Onboarding
+        description: Enterprise KYC/KYB — sanctions, PEP, identity proofing, periodic refresh.
+        bian_service_domains:
+          - Party Lifecycle Management
+          - Party Authentication
+          - Document Services
+          - Party Reference Data Management
+          - Legal Entity Directory
+        tier_ids: [party_kyc]
+      - rack_id: party_data
+        name: Party Data
+        bian_service_domains: [Party Data Management, Party Reference Data Management, Customer Profile]
+        tier_ids: [party_kyc]
+      - rack_id: legal_entities
+        name: Legal Entities
+        bian_service_domains: [Legal Entity Directory, Party Data Management]
+        tier_ids: [party_kyc]
+      - rack_id: authentication
+        name: Party Authentication
+        bian_service_domains: [Party Authentication]
+        tier_ids: [access_security]
+      - rack_id: entitlements
+        name: Access Entitlements
+        bian_service_domains: [Customer Access Entitlement]
+        tier_ids: [access_security]
+      - rack_id: transaction_auth
+        name: Transaction Authorization
+        bian_service_domains: [Transaction Authorization, Fraud Evaluation]
+        tier_ids: [access_security]
+      - rack_id: fraud
+        name: Fraud Evaluation
+        bian_service_domains: [Fraud Evaluation]
+        tier_ids: [risk_compliance]
+      - rack_id: credit_rating
+        name: Customer Credit Rating
+        bian_service_domains: [Customer Credit Rating, Credit Management]
+        tier_ids: [risk_compliance]
+      - rack_id: regulatory
+        name: Regulatory Reporting
+        bian_service_domains: [Regulatory Reporting]
+        tier_ids: [risk_compliance]
+      - rack_id: agreements
+        name: Customer Agreements
+        bian_service_domains: [Customer Agreement]
+        tier_ids: [customer_common]
+      - rack_id: eligibility
+        name: Product Eligibility
+        bian_service_domains: [Customer Product And Service Eligibility, Customer Offer]
+        tier_ids: [customer_common]
+      - rack_id: position
+        name: Customer Position
+        bian_service_domains: [Customer Position]
+        tier_ids: [customer_common]

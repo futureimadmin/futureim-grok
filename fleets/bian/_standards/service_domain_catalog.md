@@ -1,41 +1,36 @@
-# BIAN Service Domain Catalog (reference)
+# BIAN Service Domain Catalog (RAG Fleet reference)
 
-**Sources:** BIAN Service Landscape (v9–v14), bian-official/public Semantic APIs.
-**Note:** Full landscape has 300+ domains historically; public OAS packs expose 98+ ISO20022-extended domains. Extend without volume limits.
+Curated for futureim-rag-fleet. Full BIAN Landscape (v12–v14) has 300+ domains;
+this catalog prioritises dual-pull, enterprise common services, and codegen.
 
-## Hierarchy
+## Enterprise-shared (common to all Fleets / Racks / Tiers)
 
-```text
-Business Area
-  └── Business Domain
-        └── Service Domain  ← unit of capability + Semantic API
-```
+Party Lifecycle Management (KYC/KYB), Party Reference Data Management, Party Data Management,
+Legal Entity Directory, Customer Profile, Party Authentication, Customer Access Entitlement,
+Transaction Authorization, Document Services, Fraud Evaluation, Customer Credit Rating,
+Regulatory Reporting, Customer Agreement, Customer Product And Service Eligibility,
+Customer Position, Servicing Event History, Financial Gateway.
 
-**ArchiMate mapping:**
-- Business Area / Business Domain → Grouping / Capability hierarchy
-- Service Domain → Capability (discrete, non-overlapping)
-- Service exchanges → serving / flow between capabilities
-- Business Scenario → sequence of service operations
+These map to fleet **enterprise** in the registry.
 
-## Categories and representative service domains
+## Categories
 
-| Category | Representative service domains | Purpose |
-|----------|--------------------------------|---------|
-| **Customer & relationship** | Customer Relationship Management, Customer Offer, Customer Position, Party Reference Data Directory, Party Authentication | Party lifecycle, offers |
-| **Account management** | Current Account, Savings Account, Investment Account, Term Deposit, Position Keeping | Deposit/investment facilities |
-| **Lending** | Loan, Mortgage Loan, Consumer Loan, Corporate Loan, Syndicated Loan, Credit Facility, Credit Management, Limit And Exposure, Collateral | Credit products |
-| **Payments** | Payment Order, Payment Instruction, Payment Execution, Direct Debit Mandate, Standing Order | Instruction → settlement |
-| **Cards** | Card Authorization, Card Capture, Card Clearing, Card Collections | Card lifecycle |
-| **Markets & trading** | Program Trading, Trade Settlement, Trade Clearing, eTrading Workbench | Capital markets |
-| **Trade finance** | Letter Of Credit, Bank Guarantee, Trade Finance | Documentary products |
-| **Risk & compliance** | Credit Risk Operations, Account Reconciliation, Fraud Evaluation | Control & integrity |
-| **Collections** | Delinquent Account Handling, Account Recovery, Collections | Arrears |
-| **Channels** | Session Dialogue, Contact Routing, Branch/eBranch/ATM Operations | Channel execution |
-| **Documents** | Document Services, Document Library, Correspondence | Content & evidence |
-| **Infrastructure** | Service Directory, Enterprise Architecture, Product Directory | Cross-cutting |
+| Category | Examples |
+|----------|----------|
+| Party / KYC | Party Lifecycle Management, Party Data Management, Legal Entity Directory |
+| Customer | CRM, Offer, Agreement, Eligibility, Position |
+| Cross Channel | Party Authentication, Transaction Authorization |
+| Lending | Loan, Mortgage, Consumer/Corporate/Syndicated, Credit Facility, Project Finance |
+| Accounts | Current, Savings, Term Deposit, Virtual Account, Standing Order |
+| Payments | Payment Order, Execution, Initiation, Direct Debit, Financial Gateway |
+| Cards | Card Transaction, Capture, Clearing, Billing, Case, Collections |
+| Investments | Investment Account, Portfolio Planning/Analysis/Management, eTrading |
+| Trade | Letter of Credit, Bank Guarantee, Trade Finance |
+| Risk | Fraud Evaluation, Customer Credit Rating, Regulatory Reporting |
+| Infrastructure | Document Services, Financial Gateway |
 
-## RAG Fleet rule
+## Rule
 
-- Product fleets declare `bian_service_domains` per rack.
-- Reference fleet `bian` holds canonical knowledge.
-- Dual-pull merges product policy with reference domains.
+1. Enterprise common always dual-pull from bian domains (or scope fleet enterprise).
+2. Product fleets add product-specific domains only.
+3. Codegen emits stubs only for resolved domains for the selected scope.
